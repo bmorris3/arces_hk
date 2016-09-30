@@ -6,11 +6,12 @@ import numpy as np
 import astropy.units as u
 
 from toolkit import (EchelleSpectrum, continuum_normalize, fit_emission_feature,
-                     plot_spectrum_for_s_index)
+                     plot_spectrum_for_s_index, true_h_centroid,
+                     true_k_centroid, uncalibrated_s_index)
 
 root_dir = '/media/PASSPORT/APO/Q3UW04/'
-dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709']
-standard = 'BD28_4211'
+dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709', 'UT160918']
+standard = ['BD28_4211', 'BD28_4211', 'BD28_4211', 'BD28_4211', 'hr6943']
 
 all_normalized_spectra = []
 
@@ -20,10 +21,11 @@ approx_h = 3967.5 * u.Angstrom
 date_index = 0
 for date_index in range(len(dates)):
     data_dir = os.path.join(root_dir, dates[date_index])
-    hat11_spectra_paths = glob(os.path.join(data_dir, 'HAT*.wfrmcpc.fits'))
+    hat11_spectra_paths = (glob(os.path.join(data_dir, 'HAT*.wfrmcpc.fits')) +
+                           glob(os.path.join(data_dir, 'hat*.wfrmcpc.fits')))
     standard_spectra_paths = glob(os.path.join(data_dir,
-                                               "{0}*.wfrmcpc.fits".format(standard)))
-
+                                               "{0}*.wfrmcpc.fits"
+                                               .format(standard[date_index])))
     for spectrum_index in range(len(hat11_spectra_paths)):
 
         # Skip one bad observation:
@@ -38,8 +40,6 @@ for date_index in range(len(dates)):
 
 # Fit the H & K features to refine wavelength solution:
 
-k_params = []
-h_params = []
 times = []
 
 for spectrum in all_normalized_spectra:
@@ -47,24 +47,25 @@ for spectrum in all_normalized_spectra:
                                             name='CaII K', plot=False,
                                             use_right_wings=True,
                                             background_width=8*u.Angstrom)
-    k_params.append(params)
+    spectrum.offset_wavelength_solution(90, true_k_centroid -
+                                        params['x_0_0']*u.angstrom)
 
     time, ew, params = fit_emission_feature(spectrum, approx_h, 89,
                                             name='CaII H', plot=False,
                                             use_right_wings=True,
                                             background_width=8*u.Angstrom)
-    h_params.append(params)
+    spectrum.offset_wavelength_solution(89, true_h_centroid -
+                                        params['x_0_0']*u.angstrom)
     times.append(time)
 
-h_centroids = np.array([0.5 * (d['x_0_0'] + d['x_0_1']) for d in h_params]) * u.Angstrom
-k_centroids = np.array([0.5 * (d['x_0_0'] + d['x_0_1']) for d in k_params]) * u.Angstrom
+plot_spectrum_for_s_index(all_normalized_spectra)
 
-true_h_centroid = 3968.492 * u.Angstrom
-true_k_centroid = 3933.682 * u.Angstrom
+s = []
+for spectrum in all_normalized_spectra:
+    s.append(uncalibrated_s_index(spectrum))
 
-wavelength_offsets_h = true_h_centroid - h_centroids
-wavelength_offsets_k = true_k_centroid - k_centroids
+from astropy.time import Time
+times = Time(times)
 
-plot_spectrum_for_s_index(all_normalized_spectra, wavelength_offsets_h,
-                          wavelength_offsets_k)
+plt.plot_date(times.plot_date, s)
 plt.show()

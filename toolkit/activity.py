@@ -9,7 +9,8 @@ from astropy.modeling.models import Voigt1D, Lorentz1D
 from astropy.modeling import fitting
 
 __all__ = ['fit_emission_feature', 'integrate_spectrum_trapz',
-           'plot_spectrum_for_s_index']
+           'plot_spectrum_for_s_index', 'true_h_centroid', 'true_k_centroid',
+           'uncalibrated_s_index']
 
 fit_model = fitting.SLSQPLSQFitter()  # fitting.LevMarLSQFitter()
 
@@ -66,6 +67,7 @@ def fit_emission_feature(normalized_spectrum, approx_wavelength, spectral_order,
     # Force the center of absorption and emission to be the same wavelength
     init_params.x_0_1.tied = lambda m: m.x_0_0
 
+    init_model = init_params.evaluate(wavelength.value, *init_params.parameters)
     composite_model = fit_model(init_params, wavelength.value, flux - 1,
                                 maxiter=1000, acc=1e-8, disp=False)
     best_fit_model = composite_model(wavelength.value)
@@ -81,12 +83,13 @@ def fit_emission_feature(normalized_spectrum, approx_wavelength, spectral_order,
 
     # Equivalent width is multiplied by -1 because wavelength array is in reverse order
     equiv_width_trapz = -1 * np.trapz(best_fit_core_model(wavelength.value),
-                                      x = wavelength.value)
+                                      x=wavelength.value)
 
     if plot:
         fig, ax = plt.subplots(1)
         ax.plot(wavelength, flux)
         ax.plot(wavelength, best_fit_model + 1, 'r')
+        ax.plot(wavelength, init_model+1, 'm')
         ax.get_xaxis().get_major_formatter().set_useOffset(False)
         ax.set_title(name + " EW={0:.4f}".format(equiv_width_trapz))
 
@@ -94,7 +97,7 @@ def fit_emission_feature(normalized_spectrum, approx_wavelength, spectral_order,
 
 
 def integrate_spectrum_trapz(spectrum, center_wavelength,
-                             width, wavelength_offset=0):
+                             width, weighting=False):
     """
     Integrate the area under a spectrum.
 
@@ -109,8 +112,10 @@ def integrate_spectrum_trapz(spectrum, center_wavelength,
     wavelength_offset : float
         Offset wavelengths by this amount, which is useful if a wavelength
         solution refinement as been made.
+    weighting : bool
+        Apply a triangular weighting function to the fluxes
     """
-    wavelength = spectrum.wavelength + wavelength_offset
+    wavelength = spectrum.wavelength
     wavelengths_increasing = wavelength[1] > wavelength[0]
 
     if (not center_wavelength < wavelength.max() and
@@ -123,23 +128,27 @@ def integrate_spectrum_trapz(spectrum, center_wavelength,
     within_bounds = ((wavelength > center_wavelength - width/2) &
                      (wavelength < center_wavelength + width/2))
 
-    integral = np.trapz(flux[within_bounds].value,
-                        wavelength[within_bounds].value)
+    if not weighting:
+        integral = np.trapz(flux[within_bounds].value,
+                            wavelength[within_bounds].value)
+    else:
+        integral = np.trapz(flux[within_bounds].value *
+                            triangle_weighting(wavelength[within_bounds],
+                                               center_wavelength),
+                            wavelength[within_bounds].value)
 
     if not wavelengths_increasing:
         integral *= -1
 
     return integral
 
-def plot_spectrum_for_s_index(all_normalized_spectra, wavelength_offsets_h,
-                              wavelength_offsets_k):
+
+def plot_spectrum_for_s_index(all_normalized_spectra):
 
     fig, ax = plt.subplots(1, 4, figsize=(16, 4))
 
 
-    for spectrum, h_offset, k_offset in zip(all_normalized_spectra,
-                                            wavelength_offsets_h,
-                                            wavelength_offsets_k):
+    for spectrum in all_normalized_spectra:
 
         order_h = spectrum.get_order(89)
         order_k = spectrum.get_order(90)
@@ -148,10 +157,10 @@ def plot_spectrum_for_s_index(all_normalized_spectra, wavelength_offsets_h,
 
         alpha = 0.5
 
-        ax[0].plot(order_k.wavelength + k_offset, order_k.flux, alpha=alpha)
+        ax[0].plot(order_k.wavelength, order_k.flux, alpha=alpha)
         ax[0].set_title('K')
 
-        ax[1].plot(order_h.wavelength + h_offset, order_h.flux, alpha=alpha)
+        ax[1].plot(order_h.wavelength, order_h.flux, alpha=alpha)
         ax[1].set_title('H')
 
         ax[2].plot(order_r.wavelength, order_r.flux, alpha=alpha)
@@ -212,8 +221,43 @@ def triangle_weighting(x, x0, fwhm=1.09*u.Angstrom):
     left_half = (x <= x0) & (x > x0 - fwhm)
     right_half = (x > x0) & (x < x0 + fwhm)
 
-    weights = np.zeros_like(x)
-    weights[left_half] = (x[left_half] - x0) / fwhm + 1
-    weights[right_half] = (x0 - x[right_half]) / fwhm + 1
+    weights = np.zeros_like(x.value)
+    # float typecasting below resolves the unitless quantities
+    weights[left_half] = ((x[left_half] - x0) / fwhm).value + 1
+    weights[right_half] = ((x0 - x[right_half]) / fwhm).value + 1
 
     return weights
+
+
+def uncalibrated_s_index(spectrum):
+    """
+    Calculate the uncalibrated S-index from an Echelle spectrum.
+
+    Parameters
+    ----------
+    spectrum : `EchelleSpectrum`
+        Normalized target spectrum
+
+    Returns
+    -------
+    s_uncalibrated : float
+        S-index. This value is intrinsic to the instrument you're using.
+    """
+
+    order_h = spectrum.get_order(89)
+    order_k = spectrum.get_order(90)
+    order_r = spectrum.get_order(91)
+    order_v = spectrum.get_order(88)
+
+    r_centroid = 3901 * u.Angstrom
+    v_centroid = 4001 * u.Angstrom
+    hk_width = 1.09*u.Angstrom
+    rv_width = 20*u.Angstrom
+
+    h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width, weighting=False)
+    k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width, weighting=False)
+    r = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
+    v = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
+
+    s_uncalibrated = (h + k) / (r + v)
+    return s_uncalibrated

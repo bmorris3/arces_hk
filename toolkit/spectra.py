@@ -96,7 +96,18 @@ class EchelleSpectrum(object):
                               spectrum.wavelength - mean_wavelength)
         return flux_fit
 
+    def offset_wavelength_solution(self, spectra_order, wavelength_offset):
+        """
+        Offset the wavelengths by a constant amount in a specific order.
 
+        Parameters
+        ----------
+        spectral_order : int
+            Echelle spectrum order to correct
+        wavelength_offset : `~astropy.units.Quantity`
+            Offset the wavelengths by this amount
+        """
+        self.spectrum_list[spectra_order].wavelength += wavelength_offset
 
 def plot_spectrum(spectrum, norm=None, ax=None, offset=0, margin=None, **kwargs):
     if ax is None:
