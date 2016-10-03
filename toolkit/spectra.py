@@ -17,9 +17,10 @@ class EchelleSpectrum(object):
     """
     Echelle spectrum of one or more spectral orders
     """
-    def __init__(self, spectrum_list, header=None):
+    def __init__(self, spectrum_list, header=None, name=None):
         self.spectrum_list = spectrum_list
         self.header = header
+        self.name = name
         
     @classmethod
     def from_fits(cls, path):
@@ -33,7 +34,9 @@ class EchelleSpectrum(object):
         """
         spectrum_list = read_fits.read_fits_spectrum1d(path)
         header = fits.getheader(path)
-        return cls(spectrum_list, header=header)
+
+        name = header.get('OBJNAME', None)
+        return cls(spectrum_list, header=header, name=name)
     
     def get_order(self, order):
         """

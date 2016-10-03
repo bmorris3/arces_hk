@@ -8,9 +8,11 @@ import astropy.units as u
 from astropy.modeling.models import Voigt1D, Lorentz1D
 from astropy.modeling import fitting
 
+from .catalog import query_catalog_for_object
+
 __all__ = ['fit_emission_feature', 'integrate_spectrum_trapz',
            'plot_spectrum_for_s_index', 'true_h_centroid', 'true_k_centroid',
-           'uncalibrated_s_index']
+           'uncalibrated_s_index', 'Star']
 
 fit_model = fitting.SLSQPLSQFitter()  # fitting.LevMarLSQFitter()
 
@@ -29,7 +31,8 @@ def fit_emission_feature(normalized_spectrum, approx_wavelength, spectral_order,
     normalized_spectrum : `EchelleSpectrum`
         Normalized spectrum of the target
     approx_wavelength : `~astropy.units.Quantity`
-        Approximate wavelength of the emission feature
+        Approximate wavelength of the emission feature. The solution will be
+        bounded to within two angstroms of the ``approx_wavelength`` guess.
     spectral_order : int
         Spectral order to fit
     background_width : `~astropy.units.Quantity`
@@ -66,6 +69,13 @@ def fit_emission_feature(normalized_spectrum, approx_wavelength, spectral_order,
 
     # Force the center of absorption and emission to be the same wavelength
     init_params.x_0_1.tied = lambda m: m.x_0_0
+    # Force the wavelength center to be near the initial guess
+    init_params.x_0_0.bounds = [approx_wavelength.value - 2.0,
+                                approx_wavelength.value + 2.0]
+    # Force the amplitude of the voigt profile to be positive
+    init_params.amplitude_L_1.bounds = [0, np.inf]
+    # Force the amplitude of the lorentz profile to be negative
+    init_params.amplitude_0.bounds = [-np.inf, 0]
 
     init_model = init_params.evaluate(wavelength.value, *init_params.parameters)
     composite_model = fit_model(init_params, wavelength.value, flux - 1,
@@ -240,7 +250,7 @@ def uncalibrated_s_index(spectrum):
 
     Returns
     -------
-    s_uncalibrated : float
+    s_uncalibrated : floa
         S-index. This value is intrinsic to the instrument you're using.
     """
 
@@ -251,8 +261,8 @@ def uncalibrated_s_index(spectrum):
 
     r_centroid = 3901 * u.Angstrom
     v_centroid = 4001 * u.Angstrom
-    hk_width = 1.09*u.Angstrom
-    rv_width = 20*u.Angstrom
+    hk_width = 1.09 * u.Angstrom
+    rv_width = 20 * u.Angstrom
 
     h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width, weighting=False)
     k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width, weighting=False)
@@ -261,3 +271,16 @@ def uncalibrated_s_index(spectrum):
 
     s_uncalibrated = (h + k) / (r + v)
     return s_uncalibrated
+
+
+class Star(object):
+    def __init__(self, name=None, s_apo=None, s_mwo=None):
+        self.name = name
+        self.s_apo = s_apo
+        self.s_mwo = s_mwo
+
+    def get_mwo_sindex(self):
+        star = query_catalog_for_object(self.name)
+
+        self.s_mwo = star['Smean']
+
