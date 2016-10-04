@@ -277,10 +277,13 @@ class Star(object):
     def __init__(self, name=None, s_apo=None, s_mwo=None):
         self.name = name
         self.s_apo = s_apo
-        self.s_mwo = s_mwo
+        self._s_mwo = s_mwo
 
-    def get_mwo_sindex(self):
-        star = query_catalog_for_object(self.name)
+    @property
+    def s_mwo(self):
+        if self._s_mwo is None:
+            obj = query_catalog_for_object(self.name)
+            self._s_mwo = obj['Smean']
+        return self._s_mwo
 
-        self.s_mwo = star['Smean']
 

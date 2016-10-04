@@ -169,4 +169,5 @@ def continuum_normalize(target_spectrum, standard_spectrum, polynomial_order):
 
         normalized_spectrum_list.append(normalized_target_spectrum)
         
-    return EchelleSpectrum(normalized_spectrum_list, header=target_spectrum.header)
+    return EchelleSpectrum(normalized_spectrum_list, header=target_spectrum.header,
+                           name=target_spectrum.name)
