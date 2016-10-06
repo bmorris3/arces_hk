@@ -1,4 +1,7 @@
 
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import numpy as np
 from astropy.utils.data import download_file
 from astropy.io import fits
@@ -26,7 +29,7 @@ def get_url(T_eff, log_g):
     closest_grid_temperature = temperatures[np.argmin(np.abs(temperatures - T_eff))]
 
     url = ('ftp://phoenix.astro.physik.uni-goettingen.de/v2.0/HiResFITS/'
-          'PHOENIX-ACES-AGSS-COND-2011/Z-0.0/lte{T_eff:05d}-{log_g:1.2f}-0.0.PHOENIX-'
+           'PHOENIX-ACES-AGSS-COND-2011/Z-0.0/lte{T_eff:05d}-{log_g:1.2f}-0.0.PHOENIX-'
            'ACES-AGSS-COND-2011-HiRes.fits').format(T_eff=closest_grid_temperature,
                                                     log_g=log_g)
     return url
@@ -44,7 +47,7 @@ def get_phoenix_model_spectrum(T_eff, log_g=4.5, cache=True):
         This must be a log g included in the grid for the effective temperature
         nearest ``T_eff``.
     cache : bool
-        Cache the result to the local astropy cache?
+        Cache the result to the local astropy cache. Default is `True`.
 
     Returns
     -------
@@ -58,8 +61,9 @@ def get_phoenix_model_spectrum(T_eff, log_g=4.5, cache=True):
     wavelength_url = ('ftp://phoenix.astro.physik.uni-goettingen.de/v2.0/HiResFITS/'
                       'WAVE_PHOENIX-ACES-AGSS-COND-2011.fits')
     wavelength_path = download_file(wavelength_url, cache=cache)
-    wavelengths = fits.getdata(wavelength_path) * u.Angstrom
+    wavelengths = fits.getdata(wavelength_path)
 
-    spectrum = Spectrum1D.from_array(wavelengths, fluxes)
+    spectrum = Spectrum1D.from_array(wavelengths, fluxes, dispersion_unit=u.Angstrom)
 
     return spectrum
+

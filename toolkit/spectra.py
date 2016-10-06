@@ -1,16 +1,22 @@
 """
 Tools for organizing, normalizing echelle spectra.
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy.io import fits
-
+import astropy.units as u
 from specutils.io import read_fits
 from specutils import Spectrum1D
 
-__all__ = ["EchelleSpectrum", "plot_spectrum", "continuum_normalize"]
+from .spectral_type import query_for_T_eff
+from .phoenix import get_phoenix_model_spectrum
+
+__all__ = ["EchelleSpectrum", "plot_spectrum", "continuum_normalize",
+           "slice_spectrum", "interpolate_spectrum", "cross_corr"]
 
 
 class EchelleSpectrum(object):
@@ -21,6 +27,7 @@ class EchelleSpectrum(object):
         self.spectrum_list = spectrum_list
         self.header = header
         self.name = name
+        self.model_spectrum = None
         
     @classmethod
     def from_fits(cls, path):
@@ -99,7 +106,7 @@ class EchelleSpectrum(object):
                               spectrum.wavelength - mean_wavelength)
         return flux_fit
 
-    def offset_wavelength_solution(self, spectra_order, wavelength_offset):
+    def offset_wavelength_solution(self, spectral_order, wavelength_offset):
         """
         Offset the wavelengths by a constant amount in a specific order.
 
@@ -110,7 +117,35 @@ class EchelleSpectrum(object):
         wavelength_offset : `~astropy.units.Quantity`
             Offset the wavelengths by this amount
         """
-        self.spectrum_list[spectra_order].wavelength += wavelength_offset
+        self.spectrum_list[spectral_order].wavelength += wavelength_offset
+
+    def shift_order_to_rest_frame(self, spectral_order):
+        """
+        Shift the wavelength solution of this spectral order.
+
+        Parameters
+        ----------
+        spectral_order : int
+            Echelle spectrum order to shift
+        """
+        order = self.spectrum_list[spectral_order]
+
+        if self.model_spectrum is None:
+            T_eff = query_for_T_eff(self.name)
+            self.model_spectrum = get_phoenix_model_spectrum(T_eff)
+
+        order_width = order.wavelength.ptp()
+        target_slice = slice_spectrum(order, order.wavelength.min() + order_width/4,
+                                      order.wavelength.max() - order_width/4)
+        model_slice = slice_spectrum(self.model_spectrum, target_slice.wavelength.min(),
+                                     target_slice.wavelength.max(),
+                                     norm=target_slice.flux.max())
+
+        interp_target_slice = interpolate_spectrum(target_slice, model_slice.wavelength)
+
+        rv_shift = cross_corr(interp_target_slice, model_slice)
+        self.offset_wavelength_solution(spectral_order, rv_shift)
+
 
 def plot_spectrum(spectrum, norm=None, ax=None, offset=0, margin=None, **kwargs):
     if ax is None:
@@ -171,3 +206,55 @@ def continuum_normalize(target_spectrum, standard_spectrum, polynomial_order):
         
     return EchelleSpectrum(normalized_spectrum_list, header=target_spectrum.header,
                            name=target_spectrum.name)
+
+
+def slice_spectrum(spectrum, start_wavelength, end_wavelength, norm=None):
+    in_range = ((spectrum.wavelength < end_wavelength) &
+                (spectrum.wavelength > start_wavelength))
+
+    wavelength = spectrum.wavelength[in_range]
+
+    if norm is None:
+        flux = spectrum.flux[in_range]
+    else:
+        flux = spectrum.flux[in_range] * norm / spectrum.flux[in_range].max()
+
+
+    return Spectrum1D.from_array(wavelength, flux,
+                                 dispersion_unit=spectrum.wavelength_unit)
+
+
+def interpolate_spectrum(spectrum, new_wavelengths):
+    # start_ind = np.argmin(np.abs(start_wavelength - spectrum.wavelength))
+    # end_ind = np.argmin(np.abs(end_wavelength - spectrum.wavelength))
+    # print(start_ind, end_ind)
+    #
+    # if end_ind < start_ind:
+    #     start_ind, end_ind = end_ind, start_ind
+    #
+    # return spectrum.slice_index(start_ind, end_ind)
+    sort_order = np.argsort(spectrum.wavelength.to(u.Angstrom).value)
+    sorted_spectrum_wavelengths = spectrum.wavelength.to(u.Angstrom).value[sort_order]
+    sorted_spectrum_fluxes = spectrum.flux.value[sort_order]
+
+    new_flux = np.interp(new_wavelengths.to(u.Angstrom).value,
+                         sorted_spectrum_wavelengths,
+                         sorted_spectrum_fluxes)
+
+    return Spectrum1D.from_array(new_wavelengths, new_flux,
+                                 dispersion_unit=spectrum.wavelength_unit)
+
+
+def cross_corr(target_spectrum, model_spectrum):
+
+    corr = np.correlate(target_spectrum.flux.value,
+                        model_spectrum.flux.value, mode='same')
+
+    max_corr_ind = np.argmax(corr)
+    index_shift = corr.shape[0]/2 - max_corr_ind
+    delta_wavelength = np.abs(target_spectrum.wavelength[1] -
+                              target_spectrum.wavelength[0])
+    wavelength_shift = index_shift * delta_wavelength
+    return wavelength_shift
+
+
