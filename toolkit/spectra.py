@@ -10,13 +10,31 @@ import numpy as np
 from astropy.io import fits
 import astropy.units as u
 from specutils.io import read_fits
-from specutils import Spectrum1D
+from specutils import Spectrum1D as Spec1D
 
 from .spectral_type import query_for_T_eff
 from .phoenix import get_phoenix_model_spectrum
+from .masking import get_spectrum_mask
 
 __all__ = ["EchelleSpectrum", "plot_spectrum", "continuum_normalize",
            "slice_spectrum", "interpolate_spectrum", "cross_corr"]
+
+
+class Spectrum1D(Spec1D):
+    """
+    Inherits from the `~specutils.Spectrum1D` object.
+
+    Adds a plot method.
+    """
+    def plot(self, ax=None, **kwargs):
+        if ax is None:
+            ax = plt.gca()
+
+        if self.mask is None:
+            mask = np.ones_like(self.flux.value).astype(bool)
+        else:
+            mask = self.mask
+        ax.plot(self.wavelength[mask], self.flux[mask], **kwargs)
 
 
 class EchelleSpectrum(object):
@@ -106,7 +124,7 @@ class EchelleSpectrum(object):
                               spectrum.wavelength - mean_wavelength)
         return flux_fit
 
-    def offset_wavelength_solution(self, spectral_order, wavelength_offset):
+    def offset_wavelength_solution(self, wavelength_offset):
         """
         Offset the wavelengths by a constant amount in a specific order.
 
@@ -117,11 +135,12 @@ class EchelleSpectrum(object):
         wavelength_offset : `~astropy.units.Quantity`
             Offset the wavelengths by this amount
         """
-        self.spectrum_list[spectral_order].wavelength += wavelength_offset
+        for spectrum in self.spectrum_list:
+            spectrum.wavelength += wavelength_offset
 
-    def shift_order_to_rest_frame(self, spectral_order):
+    def rv_wavelength_shift(self, spectral_order):
         """
-        Shift the wavelength solution of this spectral order.
+        Solve for the radial velocity wavelength shift.
 
         Parameters
         ----------
@@ -144,7 +163,8 @@ class EchelleSpectrum(object):
         interp_target_slice = interpolate_spectrum(target_slice, model_slice.wavelength)
 
         rv_shift = cross_corr(interp_target_slice, model_slice)
-        self.offset_wavelength_solution(spectral_order, rv_shift)
+        #self.offset_wavelength_solution(spectral_order, rv_shift)
+        return rv_shift
 
 
 def plot_spectrum(spectrum, norm=None, ax=None, offset=0, margin=None, **kwargs):
@@ -187,7 +207,9 @@ def continuum_normalize(target_spectrum, standard_spectrum, polynomial_order):
         # Extract one spectral order at a time to normalize
         standard_order = standard_spectrum.get_order(spectral_order)
         target_order = target_spectrum.get_order(spectral_order)
-        
+
+        target_mask = get_spectrum_mask(target_order)
+
         # Fit the standard's flux in this order with a polynomial
         fit_params = standard_spectrum.fit_order(spectral_order, polynomial_order)
         standard_continuum_fit = standard_spectrum.predict_continuum(spectral_order, 
@@ -200,7 +222,7 @@ def continuum_normalize(target_spectrum, standard_spectrum, polynomial_order):
         target_continuum_normalized_flux /= np.median(target_continuum_normalized_flux)
 
         normalized_target_spectrum = Spectrum1D(target_continuum_normalized_flux, 
-                                                target_order.wcs)
+                                                target_order.wcs, mask=target_mask)
 
         normalized_spectrum_list.append(normalized_target_spectrum)
         
