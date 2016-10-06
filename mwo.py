@@ -29,21 +29,20 @@ import astropy.units as u
 
 from toolkit import (EchelleSpectrum, continuum_normalize, fit_emission_feature,
                      plot_spectrum_for_s_index, true_h_centroid,
-                     true_k_centroid, uncalibrated_s_index)
+                     true_k_centroid, uncalibrated_s_index, Star)
 
-root_dir = '/media/PASSPORT/APO/Q3UW04/'
+root_dir = '/run/media/bmmorris/PASSPORT/APO/Q3UW04/'
 dates = ['UT160918']
 standard = ['hr6943']
 
 target_names = ['hd201251', 'hd217906', 'hd218356', 'hd222107',
-                'hd210905', 'hd220182', 'gj9781a', 'hr8781']
+                'hd210905', 'hd220182', 'gj9781a']
 
 all_normalized_spectra = []
 
 approx_k = 3933.6 * u.Angstrom
-approx_h = 3968.0 * u.Angstrom
+approx_h = 3968.25 * u.Angstrom
 
-date_index = 0
 for date_index in range(len(dates)):
     data_dir = os.path.join(root_dir, dates[date_index])
 
@@ -83,16 +82,26 @@ for spectrum in all_normalized_spectra:
     spectrum.offset_wavelength_solution(89, true_h_centroid -
                                         params['x_0_0']*u.angstrom)
     times.append(time)
-    plt.show()
+    #plt.show()
 
 plot_spectrum_for_s_index(all_normalized_spectra)
 
-s = []
+stars = []
 for spectrum in all_normalized_spectra:
-    s.append(uncalibrated_s_index(spectrum))
+    s_apo = uncalibrated_s_index(spectrum)
+
+    star = Star(name=spectrum.name, s_apo=s_apo)
+    stars.append(star)
 
 from astropy.time import Time
-times = Time(times)
+# times = Time(times)
 
-plt.plot_date(times.plot_date, s)
+#plt.plot_date(times.plot_date)
+
+s_mwo = [s.s_mwo for s in stars]
+s_apo = [s.s_apo for s in stars]
+
+plt.plot(s_mwo, s_apo, '.')
+plt.xlabel('MWO')
+plt.ylabel('APO')
 plt.show()
