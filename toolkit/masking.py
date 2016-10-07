@@ -1,19 +1,17 @@
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
+import matplotlib.pyplot as plt
 
 
 def gaussian(x, a, x0, sigma):
     return a * np.exp(-0.5 * (x - x0)**2 / sigma**2)
 
-# def derivative_gaussian(p, x, y):
-#     a, x0, sigma = p
-#     return -(x-x0)/sigma**2 * gaussian(x, a, x0, sigma)
 
 def chi2(p, x, y):
     return np.sum((gaussian(x, *p) - y)**2)
 
 
-def get_spectrum_mask(spectrum, cutoff=1.5):
+def get_spectrum_mask(spectrum, cutoff=1.5, plot=False):
     """
     Fit the raw, pre-normalized spectrum's blaze function
     with a Gaussian. Use a
@@ -50,5 +48,11 @@ def get_spectrum_mask(spectrum, cutoff=1.5):
 
     mask = ((spectrum.wavelength.value > best_x0 - cutoff * best_sigma) &
             (spectrum.wavelength.value < best_x0 + cutoff * best_sigma))
+
+    if plot:
+        plt.figure()
+        plt.plot(spectrum.wavelength, spectrum.flux, label='unmasked')
+        plt.plot(spectrum.wavelength[mask], spectrum.flux[mask], label='masked')
+        plt.legend()
 
     return mask

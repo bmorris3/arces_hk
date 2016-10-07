@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import numpy as np
 from astroquery.simbad import Simbad
 
 __all__ = ['query_for_spectral_type', 'query_for_T_eff']
@@ -91,7 +92,7 @@ def query_for_spectral_type(identifier, only_first_two_characters=True,
     if len(result['SP_TYPE']) > 0:
 
         if only_first_two_characters:
-            return result['SP_TYPE'][0][:2]
+            return result['SP_TYPE'][0][:2].strip()
         else:
             return result['SP_TYPE'][0]
     else:
@@ -116,5 +117,9 @@ def query_for_T_eff(identifier):
         Approximate effective temperature of the star.
     """
     sptype = query_for_spectral_type(identifier)
+    while not sptype in effective_temperatures:
+        letter, number = list(sptype)
+        sptype = letter + str(int(number) - 1)
+
     T_eff = effective_temperatures[sptype]
     return T_eff
