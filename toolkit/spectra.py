@@ -9,6 +9,7 @@ import numpy as np
 
 from astropy.io import fits
 import astropy.units as u
+from astropy.time import Time
 from specutils.io import read_fits
 from specutils import Spectrum1D as Spec1D
 from scipy.ndimage import gaussian_filter1d
@@ -65,13 +66,18 @@ class EchelleSpectrum(object):
     """
     Echelle spectrum of one or more spectral orders
     """
-    def __init__(self, spectrum_list, header=None, name=None, fits_path=None):
+    def __init__(self, spectrum_list, header=None, name=None, fits_path=None, time=None):
         self.spectrum_list = spectrum_list
         self.header = header
         self.name = name
         self.fits_path = fits_path
         self.standard_star_props = {}
         self.model_spectrum = None
+
+        if header is not None and time is None:
+            time = Time(header['DATE-OBS'], format='isot')
+
+        self.time = time
 
     @classmethod
     def from_fits(cls, path):
@@ -244,13 +250,13 @@ def plot_spectrum(spectrum, norm=None, ax=None, offset=0, margin=None, **kwargs)
         ax = plt.gca()
     if norm is None:
         norm = np.ones_like(spectrum.flux)
-    elif hasattr(norm, 'flux'): 
+    elif hasattr(norm, 'flux'):
         norm = norm.flux
     if margin is None:
         ax.plot(spectrum.wavelength, spectrum.flux/norm + offset, **kwargs)
-    else: 
-        ax.plot(spectrum.wavelength[margin:-margin], 
-                spectrum.flux[margin:-margin]/norm[margin:-margin] + offset, 
+    else:
+        ax.plot(spectrum.wavelength[margin:-margin],
+                spectrum.flux[margin:-margin]/norm[margin:-margin] + offset,
                 **kwargs)
 
         

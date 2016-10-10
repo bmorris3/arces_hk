@@ -5,8 +5,6 @@ Tools for measuring equivalent widths, S-indices.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
-import matplotlib.pyplot as plt
 from astroquery.vizier import Vizier
 
 __all__ = ['get_duncan_catalog', 'sindex_catalog', 'query_catalog_for_object']

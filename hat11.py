@@ -5,67 +5,75 @@ import matplotlib.pyplot as plt
 import numpy as np
 import astropy.units as u
 
-from toolkit import (EchelleSpectrum, continuum_normalize, fit_emission_feature,
-                     plot_spectrum_for_s_index, true_h_centroid,
-                     true_k_centroid, uncalibrated_s_index)
+from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
+                     Star)
 
-root_dir = '/media/PASSPORT/APO/Q3UW04/'
+root_dir = '/run/media/bmmorris/PASSPORT/APO/Q3UW04/'
 dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709', 'UT160918']
-standard = ['BD28_4211', 'BD28_4211', 'BD28_4211', 'BD28_4211', 'hr6943']
+standards = ['BD28_4211', 'BD28_4211', 'BD28_4211', 'BD28_4211', 'hr6943']
 
-all_normalized_spectra = []
 
-approx_k = 3932.5 * u.Angstrom
-approx_h = 3967.5 * u.Angstrom
+# hd222107 seems to have an anamolously low S_apo
+target_names = ['hat', 'HAT']
 
-date_index = 0
-for date_index in range(len(dates)):
-    data_dir = os.path.join(root_dir, dates[date_index])
-    hat11_spectra_paths = (glob(os.path.join(data_dir, 'HAT*.wfrmcpc.fits')) +
-                           glob(os.path.join(data_dir, 'hat*.wfrmcpc.fits')))
+all_spectra = []
+stars = []
+
+approx_k = 3933.6 * u.Angstrom
+approx_h = 3968.25 * u.Angstrom
+
+for date_name, standard_name in zip(dates, standards):
+    data_dir = os.path.join(root_dir, date_name)
+
+    spectra_paths = glob_spectra_paths(data_dir, target_names)
+
     standard_spectra_paths = glob(os.path.join(data_dir,
                                                "{0}*.wfrmcpc.fits"
-                                               .format(standard[date_index])))
-    for spectrum_index in range(len(hat11_spectra_paths)):
+                                               .format(standard_name)))
 
-        # Skip one bad observation:
-        if not (spectrum_index == 3 and dates[date_index] == 'UT160707'):
+    for spectrum_path in spectra_paths:
+        target_spectrum = EchelleSpectrum.from_fits(spectrum_path)
+        standard_spectrum = EchelleSpectrum.from_fits(standard_spectra_paths[0])
 
-            hat11_spectrum = EchelleSpectrum.from_fits(hat11_spectra_paths[spectrum_index])
-            standard_spectrum = EchelleSpectrum.from_fits(standard_spectra_paths[0])
+        target_spectrum.continuum_normalize(standard_spectrum,
+                                            polynomial_order=8,
+                                            plot_masking=False)
 
-            normed_spectrum = continuum_normalize(hat11_spectrum, standard_spectrum,
-                                                  polynomial_order=8)
-            all_normalized_spectra.append(normed_spectrum)
+        rv_shifts = u.Quantity([target_spectrum.rv_wavelength_shift(order)
+                                for order in range(81, 91)])
+        median_rv_shift = np.median(rv_shifts)
 
-# Fit the H & K features to refine wavelength solution:
+        target_spectrum.offset_wavelength_solution(median_rv_shift)
 
-times = []
+        # s = target_spectrum.get_order(89)
+        # plt.plot(target_spectrum.model_spectrum.wavelength,
+        #          target_spectrum.model_spectrum.flux * s.flux[s.mask].max() /
+        #          target_spectrum.model_spectrum.flux.max())
+        # s.plot()
+        # plt.legend()
+        # plt.show()
 
-for spectrum in all_normalized_spectra:
-    time, ew, params = fit_emission_feature(spectrum, approx_k, 90,
-                                            name='CaII K', plot=False,
-                                            use_right_wings=True,
-                                            background_width=8*u.Angstrom)
-    spectrum.offset_wavelength_solution(90, true_k_centroid -
-                                        params['x_0_0']*u.angstrom)
+        all_spectra.append(target_spectrum)
 
-    time, ew, params = fit_emission_feature(spectrum, approx_h, 89,
-                                            name='CaII H', plot=False,
-                                            use_right_wings=True,
-                                            background_width=8*u.Angstrom)
-    spectrum.offset_wavelength_solution(89, true_h_centroid -
-                                        params['x_0_0']*u.angstrom)
-    times.append(time)
+        s_apo = uncalibrated_s_index(target_spectrum)
 
-plot_spectrum_for_s_index(all_normalized_spectra)
+        star = Star(name=target_spectrum.name, s_apo=s_apo, time=target_spectrum.time)
+        stars.append(star)
 
-s = []
-for spectrum in all_normalized_spectra:
-    s.append(uncalibrated_s_index(spectrum))
+#s_mwo = np.array([s.s_mwo for s in stars])
+s_apo = np.array([s.s_apo.uncalibrated for s in stars])
 
 from astropy.time import Time
-times = Time(times)
-
-plt.plot_date(times.plot_date, s)
+times = Time([s.time for s in stars])
+plt.plot_date(times.plot_date, s_apo)
 plt.show()
+#
+#         # Skip one bad observation:
+#         if not (spectrum_index == 3 and dates[date_index] == 'UT160707'):
+#
+#             hat11_spectrum = EchelleSpectrum.from_fits(hat11_spectra_paths[spectrum_index])
+#             standard_spectrum = EchelleSpectrum.from_fits(standard_spectra_paths[0])
+#
+#             normed_spectrum = continuum_normalize(hat11_spectrum, standard_spectrum,
+#                                                   polynomial_order=8)
+#             all_normalized_spectra.append(normed_spectrum)

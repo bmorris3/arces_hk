@@ -187,8 +187,10 @@ def plot_spectrum_for_s_index(all_normalized_spectra):
     v_centroid = 4001 * u.Angstrom
     width = 12 * u.Angstrom
 
-    ax[0].set_xlim([(true_k_centroid - width).value, (true_k_centroid + width).value])
-    ax[1].set_xlim([(true_h_centroid - width).value, (true_h_centroid + width).value])
+    ax[0].set_xlim([(true_k_centroid - width).value,
+                    (true_k_centroid + width).value])
+    ax[1].set_xlim([(true_h_centroid - width).value,
+                    (true_h_centroid + width).value])
     ax[2].set_xlim([(r_centroid - width).value, (r_centroid + width).value])
     ax[3].set_xlim([(v_centroid - width).value, (v_centroid + width).value])
 
@@ -253,7 +255,7 @@ def uncalibrated_s_index(spectrum):
 
     Returns
     -------
-    s_uncalibrated : floa
+    s_ind : `SIndex`
         S-index. This value is intrinsic to the instrument you're using.
     """
 
@@ -267,20 +269,84 @@ def uncalibrated_s_index(spectrum):
     hk_width = 1.09 * u.Angstrom
     rv_width = 20 * u.Angstrom
 
-    h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width, weighting=False)
-    k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width, weighting=False)
+    h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width,
+                                 weighting=False)
+    k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width,
+                                 weighting=False)
     r = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
     v = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
 
-    s_uncalibrated = (h + k) / (r + v)
-    return s_uncalibrated
+    #s_uncalibrated = (h + k) / (r + v)
+    s_ind = SIndex(h=h, k=k, r=r, v=v)
+    return s_ind
 
+
+class SIndex(object):
+    def __init__(self, h, k, r, v, k_factor=2.0, v_factor=1.0, time=None):
+        """
+        The pre-factors have been chosen to make the ``h`` and ``k`` values
+        of the same order of magnitude; same for ``r`` and ``v``.
+
+        Parameters
+        -----------
+        h : float
+            CaII H feature emission flux
+        k : float
+            CaII K feature emission flux
+        r : float
+            Pseudo-continuum flux redward of CaII H&K
+        v : float
+            Pseudo-continuum flux blueward of CaII H&K
+        k_factor : float
+            Multiplicative factor for the K emission feature flux
+            to make the H & K fluxes similar
+        v_factor : float
+            Multiplicative factor for the blue continuum region flux
+            to make the r & v fluxes similar
+        time : `~astropy.time.Time`
+            Time this S-index measurement was taken.
+        """
+        self.r = r
+        self.v = v
+        self.h = h
+        self.k = k
+
+        self.k_factor = k_factor
+        self.v_factor = v_factor
+
+        self.time = time
+
+    @property
+    def uncalibrated(self):
+        """
+        Compute Eqn 2 of Isaacson+ 2010, for C1=1 and C2=0. This can be used
+        to solve for C1 and C2.
+        """
+        return ((self.h + self.k_factor * self.k) /
+                (self.r + self.v_factor * self.v))
+
+    def calibrated(self, c1, c2):
+        """
+        Calibrated S-index measurement (comparable with MWO S-indices).
+
+        Uses the scaling constants as defined in Isaacson 2010+ (c1 and c2).
+
+        Parameters
+        ----------
+        c1 : float
+        c2 : float
+
+        Returns
+        -------
+        """
+        return c1 * self.uncalibrated + c2
 
 class Star(object):
-    def __init__(self, name=None, s_apo=None, s_mwo=None):
+    def __init__(self, name=None, s_apo=None, s_mwo=None, time=None):
         self.name = name
         self.s_apo = s_apo
         self._s_mwo = s_mwo
+        self.time = time
 
     @property
     def s_mwo(self):
