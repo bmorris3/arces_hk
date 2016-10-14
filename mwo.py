@@ -24,6 +24,8 @@ stars = []
 approx_k = 3933.6 * u.Angstrom
 approx_h = 3968.25 * u.Angstrom
 
+fig, ax = plt.subplots(1, 2, figsize=(14, 7))
+
 for date_name, standard_name in zip(dates, standards):
     data_dir = os.path.join(root_dir, date_name)
 
@@ -47,13 +49,17 @@ for date_name, standard_name in zip(dates, standards):
 
         target_spectrum.offset_wavelength_solution(median_rv_shift)
 
-        s = target_spectrum.get_order(89)
-        plt.plot(target_spectrum.model_spectrum.wavelength,
-                 target_spectrum.model_spectrum.flux * s.flux[s.mask].max() /
-                 target_spectrum.model_spectrum.flux.max())
-        s.plot()
-        plt.legend()
-        plt.show()
+        s89 = target_spectrum.get_order(89)
+        # plt.plot(target_spectrum.model_spectrum.wavelength,
+        #          target_spectrum.model_spectrum.flux * s.flux[s.mask].max() /
+        #          target_spectrum.model_spectrum.flux.max())
+
+        s90 = target_spectrum.get_order(90)
+        s89.plot(ax=ax[0], label=target_spectrum.name)
+        s90.plot(ax=ax[1], label=target_spectrum.name)
+
+        # plt.legend()
+        # plt.show()
 
         all_spectra.append(target_spectrum)
 
@@ -61,6 +67,24 @@ for date_name, standard_name in zip(dates, standards):
 
         star = Star(name=target_spectrum.name, s_apo=s_apo)
         stars.append(star)
+
+ax[0].set_ylabel('Flux')
+ax[1].set_ylabel('Flux')
+ax[1].set_xlabel('Wavelength [Angstroms]')
+ax[0].set_xlabel('Wavelength [Angstroms]')
+ax[0].set_title('CaII H')
+ax[1].set_title('CaII K')
+ax[0].set_xlim([3960, 3980])
+ax[1].set_xlim([3925, 3945])
+
+for axis in ax:
+    axis.set_ylim([0, 5])
+    axis.legend()
+plt.show()
+
+# from toolkit.utils import construct_standard_star_table
+# construct_standard_star_table(target_names)
+
 
 s_mwo = np.array([s.s_mwo for s in stars])
 s_apo = np.array([s.s_apo.uncalibrated for s in stars])

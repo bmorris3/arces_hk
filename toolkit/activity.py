@@ -183,8 +183,8 @@ def plot_spectrum_for_s_index(all_normalized_spectra):
         ax[3].set_title('V')
 
 
-    r_centroid = 3901 * u.Angstrom
-    v_centroid = 4001 * u.Angstrom
+    r_centroid = 3900 * u.Angstrom
+    v_centroid = 4000 * u.Angstrom
     width = 12 * u.Angstrom
 
     ax[0].set_xlim([(true_k_centroid - width).value,
@@ -264,8 +264,8 @@ def uncalibrated_s_index(spectrum):
     order_r = spectrum.get_order(91)
     order_v = spectrum.get_order(88)
 
-    r_centroid = 3901 * u.Angstrom
-    v_centroid = 4001 * u.Angstrom
+    r_centroid = 3900 * u.Angstrom
+    v_centroid = 4000 * u.Angstrom
     hk_width = 1.09 * u.Angstrom
     rv_width = 20 * u.Angstrom
 
