@@ -86,17 +86,18 @@ def query_for_spectral_type(identifier, only_first_two_characters=True,
         Spectral type of the star.
     """
     customSimbad = Simbad()
+    customSimbad.SIMBAD_URL = 'http://simbad.harvard.edu/simbad/sim-script'
     customSimbad.add_votable_fields('sptype')
     result = customSimbad.query_object(identifier)
 
     if len(result['SP_TYPE']) > 0:
 
         if only_first_two_characters:
-            return result['SP_TYPE'][0][:2].strip()
+            return result['SP_TYPE'][0][:2].strip().decode()
         else:
-            return result['SP_TYPE'][0]
+            return result['SP_TYPE'][0].decode()
     else:
-        return default_sptype
+        return default_sptype.decode()
 
 
 def query_for_T_eff(identifier):

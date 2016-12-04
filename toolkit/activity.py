@@ -10,12 +10,13 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 from astropy.modeling.models import Voigt1D, Lorentz1D
 from astropy.modeling import fitting
+from astropy.time import Time
 
 from .catalog import query_catalog_for_object
 
 __all__ = ['fit_emission_feature', 'integrate_spectrum_trapz',
            'plot_spectrum_for_s_index', 'true_h_centroid', 'true_k_centroid',
-           'uncalibrated_s_index', 'Star']
+           'uncalibrated_s_index', 'StarProps', 'Measurement']
 
 fit_model = fitting.SLSQPLSQFitter()  # fitting.LevMarLSQFitter()
 
@@ -109,8 +110,8 @@ def fit_emission_feature(normalized_spectrum, approx_wavelength, spectral_order,
     return time, equiv_width_trapz, composite_model_params
 
 
-def integrate_spectrum_trapz(spectrum, center_wavelength,
-                             width, weighting=False):
+def integrate_spectrum_trapz(spectrum, center_wavelength, width, weighting=False,
+                             plot=False):
     """
     Integrate the area under a spectrum.
 
@@ -152,6 +153,16 @@ def integrate_spectrum_trapz(spectrum, center_wavelength,
 
     if not wavelengths_increasing:
         integral *= -1
+
+
+    if plot:
+        plt.figure()
+        plt.plot(wavelength[spectrum.mask], flux[spectrum.mask])
+        if weighting:
+            triangle = triangle_weighting(wavelength[within_bounds],
+                                          center_wavelength)
+            plt.plot(wavelength[within_bounds], triangle, 'r', lw=2)
+        plt.show()
 
     return integral
 
@@ -266,23 +277,23 @@ def uncalibrated_s_index(spectrum):
 
     r_centroid = 3900 * u.Angstrom
     v_centroid = 4000 * u.Angstrom
-    hk_width = 1.09 * u.Angstrom
+    hk_fwhm = 1.09 * u.Angstrom
+    hk_width = 2 * hk_fwhm
     rv_width = 20 * u.Angstrom
 
     h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width,
-                                 weighting=False)
+                                 weighting=True)
     k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width,
-                                 weighting=False)
+                                 weighting=True)
     r = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
     v = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
 
-    #s_uncalibrated = (h + k) / (r + v)
-    s_ind = SIndex(h=h, k=k, r=r, v=v)
+    s_ind = SIndex(h=h, k=k, r=r, v=v, time=spectrum.time)
     return s_ind
 
 
 class SIndex(object):
-    def __init__(self, h, k, r, v, k_factor=2.0, v_factor=1.0, time=None):
+    def __init__(self, h, k, r, v, k_factor=0.84, v_factor=1.0, time=None):
         """
         The pre-factors have been chosen to make the ``h`` and ``k`` values
         of the same order of magnitude; same for ``r`` and ``v``.
@@ -341,7 +352,18 @@ class SIndex(object):
         """
         return c1 * self.uncalibrated + c2
 
-class Star(object):
+    @classmethod
+    def from_dict(cls, dictionary):
+        d = dictionary.copy()
+        for key in dictionary:
+            if key == 'time':
+                d[key] = Time(float(d[key]), format='jd')
+            else:
+                d[key] = float(d[key])
+        return cls(**d)
+
+
+class StarProps(object):
     def __init__(self, name=None, s_apo=None, s_mwo=None, time=None):
         self.name = name
         self.s_apo = s_apo
@@ -352,7 +374,31 @@ class Star(object):
     def s_mwo(self):
         if self._s_mwo is None:
             obj = query_catalog_for_object(self.name)
-            self._s_mwo = obj['Smean']
+            self._s_mwo = Measurement.from_min_mean_max(obj['Smean'],
+                                                        obj['Smin'],
+                                                        obj['Smax'])
         return self._s_mwo
 
+    @classmethod
+    def from_dict(cls, dictionary):
+        s_apo = SIndex.from_dict(dictionary['s_apo'])
+        s_mwo = Measurement.from_dict(dictionary['s_mwo'])
+        return cls(s_apo=s_apo, s_mwo=s_mwo, name=dictionary['name'],
+                   time=Time(float(dictionary['time']), format='jd'))
+
+
+class Measurement(object):
+    def __init__(self, value, err_upper=None, err_lower=None):
+        self.value = value
+        self.err_upper = err_upper
+        self.err_lower = err_lower
+
+    @classmethod
+    def from_min_mean_max(cls, mean, min, max):
+        return cls(value=mean, err_upper=max-mean, err_lower=mean-min)
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        kwargs = {key: float(dictionary[key]) for key in dictionary}
+        return cls(**kwargs)
 

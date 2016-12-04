@@ -17,6 +17,7 @@ from scipy.ndimage import gaussian_filter1d
 from .spectral_type import query_for_T_eff
 from .phoenix import get_phoenix_model_spectrum
 from .masking import get_spectrum_mask
+from .activity import true_h_centroid, true_k_centroid
 
 __all__ = ["EchelleSpectrum", "plot_spectrum", "continuum_normalize",
            "slice_spectrum", "interpolate_spectrum", "cross_corr"]
@@ -66,7 +67,8 @@ class EchelleSpectrum(object):
     """
     Echelle spectrum of one or more spectral orders
     """
-    def __init__(self, spectrum_list, header=None, name=None, fits_path=None, time=None):
+    def __init__(self, spectrum_list, header=None, name=None, fits_path=None,
+                 time=None):
         self.spectrum_list = spectrum_list
         self.header = header
         self.name = name
@@ -75,7 +77,7 @@ class EchelleSpectrum(object):
         self.model_spectrum = None
 
         if header is not None and time is None:
-            time = Time(header['DATE-OBS'], format='isot')
+            time = Time(header['JD'], format='jd')
 
         self.time = time
 
@@ -111,9 +113,11 @@ class EchelleSpectrum(object):
         """
         return self.spectrum_list[order]
 
-    def fit_order(self, spectral_order, polynomial_order):
+    def fit_order(self, spectral_order, polynomial_order, plots=False):
         """
         Fit a spectral order with a polynomial.
+
+        Ignore fluxes near the CaII H & K wavelengths.
 
         Parameters
         ----------
@@ -129,8 +133,23 @@ class EchelleSpectrum(object):
         """
         spectrum = self.get_order(spectral_order)
         mean_wavelength = spectrum.wavelength.mean()
-        fit_params = np.polyfit(spectrum.wavelength - mean_wavelength, 
-                                spectrum.flux, polynomial_order)
+
+        mask_wavelengths = ((abs(spectrum.wavelength - true_h_centroid) > 6.5*u.Angstrom) &
+                            (abs(spectrum.wavelength - true_k_centroid) > 6.5*u.Angstrom))
+
+        fit_params = np.polyfit(spectrum.wavelength[mask_wavelengths] - mean_wavelength,
+                                spectrum.flux[mask_wavelengths], polynomial_order)
+
+        if plots:
+            if spectral_order in [88, 89, 90, 91]:
+                plt.figure()
+                plt.plot(spectrum.wavelength, spectrum.flux)
+                plt.plot(spectrum.wavelength[mask_wavelengths],
+                         spectrum.flux[mask_wavelengths])
+                plt.plot(spectrum.wavelength,
+                         np.polyval(fit_params,
+                                    spectrum.wavelength - mean_wavelength))
+                plt.show()
         return fit_params
     
     def predict_continuum(self, spectral_order, fit_params):
@@ -157,7 +176,7 @@ class EchelleSpectrum(object):
         return flux_fit
 
     def continuum_normalize(self, standard_spectrum, polynomial_order,
-                            plot_masking=False):
+                            only_orders=None, plot_masking=False):
         """
         Normalize the spectrum by a polynomial fit to the standard's
         spectrum.
@@ -176,7 +195,10 @@ class EchelleSpectrum(object):
         for attr in attrs:
             self.standard_star_props[attr] = getattr(standard_spectrum, attr)
 
-        for spectral_order in range(len(self.spectrum_list)):
+        if only_orders is None:
+            only_orders = range(len(self.spectrum_list))
+
+        for spectral_order in only_orders:
             # Extract one spectral order at a time to normalize
             standard_order = standard_spectrum.get_order(spectral_order)
             target_order = self.get_order(spectral_order)
@@ -184,14 +206,48 @@ class EchelleSpectrum(object):
             target_mask = get_spectrum_mask(standard_order, plot=plot_masking)
 
             # Fit the standard's flux in this order with a polynomial
+            # fit_params = standard_spectrum.fit_order(spectral_order,
+            #                                          polynomial_order)
+
             fit_params = standard_spectrum.fit_order(spectral_order,
                                                      polynomial_order)
 
             # Normalize the target's flux with the continuum fit from the standard
             target_continuum_fit = self.predict_continuum(spectral_order,
                                                           fit_params)
+            #
+            # if spectral_order in [88, 89, 90, 91]:
+            #     plt.figure()
+            #     plt.plot(target_continuum_fit)
+            #     plt.plot(target_order.flux)
+            #     plt.show()
+
             target_continuum_normalized_flux = target_order.flux / target_continuum_fit
-            target_continuum_normalized_flux /= np.median(target_continuum_normalized_flux)
+            # target_continuum_normalized_flux /= np.median(target_continuum_normalized_flux)
+
+            flux_80th_percentile = np.percentile(target_continuum_normalized_flux[target_mask], 80)
+            target_continuum_normalized_flux /= flux_80th_percentile
+
+            # if spectral_order in [88, 89, 90, 91]:
+            #     fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+            #     # plt.plot(target_order.flux / target_continuum_fit)
+            #     ax[0].plot(target_order.wavelength, target_continuum_normalized_flux)
+            #     ax[0].plot(target_order.wavelength[target_mask],
+            #              target_continuum_normalized_flux[target_mask])
+            #
+            #     yrange = [0, 3]
+            #     ax[0].set_ylim(yrange)
+            #
+            #     ax[1].hist(target_continuum_normalized_flux, 70, range=yrange,
+            #                orientation='horizontal', histtype='stepfilled',
+            #                color='k')
+            #
+            #     for axis in ax:
+            #         props = dict(ls='--', lw=2, color='r')
+            #         axis.axhline(np.percentile(target_continuum_normalized_flux, 80), **props)
+            #         # axis.axhline(np.percentile(target_continuum_normalized_flux, 90), **props)
+            #
+            #     plt.show()
 
             normalized_target_spectrum = Spectrum1D(target_continuum_normalized_flux,
                                                     target_order.wcs, mask=target_mask)
@@ -213,7 +269,7 @@ class EchelleSpectrum(object):
         for spectrum in self.spectrum_list:
             spectrum.wavelength += wavelength_offset
 
-    def rv_wavelength_shift(self, spectral_order):
+    def rv_wavelength_shift(self, spectral_order, plot=False):
         """
         Solve for the radial velocity wavelength shift.
 
@@ -242,6 +298,23 @@ class EchelleSpectrum(object):
 
         rv_shift = cross_corr(interp_target_slice, model_slice,
                               kernel_width=smoothing_kernel_width)
+
+        if plot:
+            plt.figure()
+            plt.plot(order.masked_wavelength + rv_shift, order.masked_flux,
+                     label='shifted spectrum')
+            # plt.plot(interp_target_slice.wavelength, interp_target_slice.flux,
+            #          label='spec interp')
+            # plt.plot(model_slice.wavelength,
+            #          gaussian_filter1d(model_slice.flux, smoothing_kernel_width),
+            #          label='smoothed model')
+            plt.plot(model_slice.wavelength,
+                     gaussian_filter1d(model_slice.flux, smoothing_kernel_width),
+                     label='smooth model')
+
+            plt.legend()
+            plt.show()
+
         return rv_shift
 
 
@@ -409,8 +482,12 @@ def cross_corr(target_spectrum, model_spectrum, kernel_width):
 
     max_corr_ind = np.argmax(corr)
     index_shift = corr.shape[0]/2 - max_corr_ind
-    delta_wavelength = np.abs(target_spectrum.masked_wavelength[1] -
-                              target_spectrum.masked_wavelength[0])
+
+    # delta_wavelength = np.abs(target_spectrum.masked_wavelength[1] -
+    #                           target_spectrum.masked_wavelength[0])
+
+    delta_wavelength = np.median(np.abs(np.diff(target_spectrum.masked_wavelength)))
+
     wavelength_shift = index_shift * delta_wavelength
     return wavelength_shift
 

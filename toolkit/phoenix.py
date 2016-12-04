@@ -37,7 +37,8 @@ def get_url(T_eff, log_g):
 
 def get_phoenix_model_spectrum(T_eff, log_g=4.5, cache=True):
     """
-    Download a PHOENIX model atmosphere spectrum for a star with given properties.
+    Download a PHOENIX model atmosphere spectrum for a star with given
+    properties.
 
     Parameters
     ----------
@@ -61,9 +62,18 @@ def get_phoenix_model_spectrum(T_eff, log_g=4.5, cache=True):
     wavelength_url = ('ftp://phoenix.astro.physik.uni-goettingen.de/v2.0/HiResFITS/'
                       'WAVE_PHOENIX-ACES-AGSS-COND-2011.fits')
     wavelength_path = download_file(wavelength_url, cache=cache)
-    wavelengths = fits.getdata(wavelength_path)
+    wavelengths_vacuum = fits.getdata(wavelength_path)
 
-    spectrum = Spectrum1D.from_array(wavelengths, fluxes, dispersion_unit=u.Angstrom)
+    # Wavelengths are provided at vacuum wavelengths. For ground-based
+    # observations convert this to wavelengths in air, as described in
+    # Husser 2013, Eqns. 8-10:
+    sigma_2 = (10**4 / wavelengths_vacuum)**2
+    f = (1.0 + 0.05792105/(238.0185 - sigma_2) + 0.00167917 /
+         (57.362 - sigma_2))
+    wavelengths_air = wavelengths_vacuum / f
+
+    spectrum = Spectrum1D.from_array(wavelengths_air, fluxes,
+                                     dispersion_unit=u.Angstrom)
 
     return spectrum
 
