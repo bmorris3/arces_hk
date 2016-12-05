@@ -61,7 +61,8 @@ for date_name, standard_name in zip(dates, standards):
 
         s_apo = uncalibrated_s_index(target_spectrum)
 
-        star = StarProps(name=target_spectrum.name, s_apo=s_apo)
+        star = StarProps(name=target_spectrum.name, s_apo=s_apo,
+                         time=target_spectrum.time)
         stars.append(star)
 
 stars_to_json(stars, output_path='hat11.json')
@@ -85,9 +86,6 @@ for axis in ax[0, :]:
     axis.legend(fontsize=8)
 
 fig.savefig('plots/spectra_hat11.png', bbox_inches='tight', dpi=200)
-
-plt.figure()
-plt.hist(star)
 
 plt.show()
 

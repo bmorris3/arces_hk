@@ -14,7 +14,7 @@ from astropy.io import ascii
 from .catalog import query_catalog_for_object
 from .activity import Measurement, SIndex, StarProps
 
-__all__ = ['glob_spectra_paths', 'stars_to_json']
+__all__ = ['glob_spectra_paths', 'stars_to_json', 'json_to_stars']
 
 
 results_dir = '/astro/users/bmmorris/Dropbox/Apps/ShareLaTeX/CaII_HAT-P-11/results/'
@@ -90,11 +90,6 @@ def construct_standard_star_table(star_list, write_to=results_dir):
     ascii.write(standard_table, format='latex', latexdict=latexdict)
 
 
-def list_attrs(obj):
-    attrs = [i for i in dir(obj) if not i.startswith('_')]
-    return attrs
-
-
 def floats_to_strings(d):
     dictionary = d.copy()
     for key in dictionary:
@@ -113,7 +108,7 @@ def stars_to_json(star_list, output_path='star_data.json'):
     output_path : str
         File path to output
     """
-    stars_attrs = list_attrs(star_list[0])
+    stars_attrs = star_list[0].__dict__.keys()
     all_data = dict()
 
     for star in star_list:
@@ -129,7 +124,7 @@ def stars_to_json(star_list, output_path='star_data.json'):
 
             star_data[attr] = value
 
-        all_data[star.name] = star_data
+        all_data[star.name + '; ' + str(star.time.datetime)] = star_data
 
     with open(output_path, 'w') as w:
         json.dump(all_data, w, indent=4, sort_keys=True)

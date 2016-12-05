@@ -171,7 +171,6 @@ def plot_spectrum_for_s_index(all_normalized_spectra):
 
     fig, ax = plt.subplots(1, 4, figsize=(16, 4))
 
-
     for spectrum in all_normalized_spectra:
 
         order_h = spectrum.get_order(89)
@@ -382,16 +381,28 @@ class StarProps(object):
     @classmethod
     def from_dict(cls, dictionary):
         s_apo = SIndex.from_dict(dictionary['s_apo'])
-        s_mwo = Measurement.from_dict(dictionary['s_mwo'])
+        if 's_mwo' in dictionary:
+            s_mwo = Measurement.from_dict(dictionary['s_mwo'])
+        else:
+            s_mwo = None
+
+        if dictionary['time'] != 'None':
+            dictionary['time'] = Time(float(dictionary['time']), format='jd')
+        else:
+            dictionary['time'] = None
+
         return cls(s_apo=s_apo, s_mwo=s_mwo, name=dictionary['name'],
-                   time=Time(float(dictionary['time']), format='jd'))
+                   time=dictionary['time'])
 
 
 class Measurement(object):
-    def __init__(self, value, err_upper=None, err_lower=None):
+    def __init__(self, value, err_upper=None, err_lower=None, default_err=0.1):
         self.value = value
-        self.err_upper = err_upper
-        self.err_lower = err_lower
+        if err_upper == 0 or err_lower == 0:
+            self.err_upper = self.err_lower = default_err
+        else:
+            self.err_upper = err_upper
+            self.err_lower = err_lower
 
     @classmethod
     def from_min_mean_max(cls, mean, min, max):

@@ -5,6 +5,7 @@ Tools for measuring equivalent widths, S-indices.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import numpy as np
 from astroquery.vizier import Vizier
 
 __all__ = ['get_duncan_catalog', 'sindex_catalog', 'query_catalog_for_object']
@@ -44,4 +45,9 @@ def query_catalog_for_object(identifier, catalog=duncan1991):
     -------
 
     """
-    return Vizier.query_object(identifier, catalog=catalog)[0][0]
+    query = Vizier.query_object(identifier, catalog=catalog)
+
+    if len(query) > 0:
+        return query[0][0]
+    else:
+        return dict(Smean=np.nan, Smin=np.nan, Smax=np.nan)
