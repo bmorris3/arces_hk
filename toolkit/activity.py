@@ -8,110 +8,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import astropy.units as u
-from astropy.modeling.models import Voigt1D, Lorentz1D
-from astropy.modeling import fitting
 from astropy.time import Time
 
 from .catalog import query_catalog_for_object
 
-__all__ = ['fit_emission_feature', 'integrate_spectrum_trapz',
-           'plot_spectrum_for_s_index', 'true_h_centroid', 'true_k_centroid',
+__all__ = ['integrate_spectrum_trapz', 'true_h_centroid', 'true_k_centroid',
            'uncalibrated_s_index', 'StarProps', 'Measurement']
-
-fit_model = fitting.SLSQPLSQFitter()  # fitting.LevMarLSQFitter()
 
 true_h_centroid = 3968.47 * u.Angstrom
 true_k_centroid = 3933.66 * u.Angstrom
 
 
-def fit_emission_feature(normalized_spectrum, approx_wavelength, spectral_order,
-                         background_width=8*u.Angstrom, name=None, plot=False,
-                         use_right_wings=False):
-    """
-    Fit an emission feature in a normalized spectrum.
-
-    Parameters
-    ----------
-    normalized_spectrum : `EchelleSpectrum`
-        Normalized spectrum of the target
-    approx_wavelength : `~astropy.units.Quantity`
-        Approximate wavelength of the emission feature. The solution will be
-        bounded to within two angstroms of the ``approx_wavelength`` guess.
-    spectral_order : int
-        Spectral order to fit
-    background_width : `~astropy.units.Quantity`
-        Set the width of the region around the the emission feature to fit
-    name : str
-        Name of the emission feature being fit (used in the optional plots)
-    plot : bool
-        Display a plot of the fit
-    use_right_wings : bool
-        Fit only the wavelengths redward of the emission feature. This is useful
-        if there are significant absorption features on the blue absorption wing.
-    """
-    spectrum = normalized_spectrum.get_order(spectral_order)
-    near_core = ((np.abs(spectrum.wavelength - approx_wavelength) <
-                  background_width))
-    time = normalized_spectrum.header['DATE-OBS']
-
-    if use_right_wings:
-        near_core &= (spectrum.wavelength > approx_wavelength - 2*u.angstrom)
-
-    wavelength = spectrum.wavelength[near_core]
-    flux = spectrum.flux[near_core]
-
-    # Normalize to the off-core flux:
-    core_width = 1.5 * u.angstrom
-    in_core = np.abs(wavelength - approx_wavelength) < core_width
-    flux /= np.max(flux[~in_core])
-
-    # Construct a model which has a Lorentzian component for absorption,
-    # a Voigt component for the emission
-    init_params = (Lorentz1D(amplitude=-0.8, x_0=approx_wavelength.value, fwhm=7.5) +
-                   Voigt1D(x_0=approx_wavelength.value,
-                           amplitude_L=1.0, fwhm_L=0.3, fwhm_G=0.2))
-
-    # Force the center of absorption and emission to be the same wavelength
-    init_params.x_0_1.tied = lambda m: m.x_0_0
-    # Force the wavelength center to be near the initial guess
-    init_params.x_0_0.bounds = [approx_wavelength.value - 2.0,
-                                approx_wavelength.value + 2.0]
-    # Force the amplitude of the voigt profile to be positive
-    init_params.amplitude_L_1.bounds = [0, np.inf]
-    # Force the amplitude of the lorentz profile to be negative
-    init_params.amplitude_0.bounds = [-np.inf, 0]
-
-    init_model = init_params.evaluate(wavelength.value, *init_params.parameters)
-    composite_model = fit_model(init_params, wavelength.value, flux - 1,
-                                maxiter=1000, acc=1e-8, disp=False)
-    best_fit_model = composite_model(wavelength.value)
-
-    # get just the best-fit Voigt profile, use it to measure the equivalent width:
-    composite_model_params = {i: j for i, j in zip(composite_model.param_names,
-                                                   composite_model.parameters)}
-
-    best_fit_core_model = Voigt1D(x_0=composite_model_params['x_0_1'],
-                                  amplitude_L=composite_model_params['amplitude_L_1'],
-                                  fwhm_L=composite_model_params['fwhm_L_1'],
-                                  fwhm_G=composite_model_params['fwhm_G_1'])
-
-    # Equivalent width is multiplied by -1 because wavelength array is in reverse order
-    equiv_width_trapz = -1 * np.trapz(best_fit_core_model(wavelength.value),
-                                      x=wavelength.value)
-
-    if plot:
-        fig, ax = plt.subplots(1)
-        ax.plot(wavelength, flux)
-        ax.plot(wavelength, best_fit_model + 1, 'r')
-        ax.plot(wavelength, init_model+1, 'm')
-        ax.get_xaxis().get_major_formatter().set_useOffset(False)
-        ax.set_title(name + " EW={0:.4f}".format(equiv_width_trapz))
-
-    return time, equiv_width_trapz, composite_model_params
-
-
-def integrate_spectrum_trapz(spectrum, center_wavelength, width, weighting=False,
-                             plot=False):
+def integrate_spectrum_trapz(spectrum, center_wavelength, width,
+                             weighting=False, plot=False):
     """
     Integrate the area under a spectrum.
 
@@ -128,6 +37,13 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width, weighting=False
         solution refinement as been made.
     weighting : bool
         Apply a triangular weighting function to the fluxes
+
+    Returns
+    -------
+    integral : float
+        Integral under the spectrum
+    error : float
+        Square-root of the sum of the fluxes within the bounds of the integral
     """
     wavelength = spectrum.wavelength
     wavelengths_increasing = wavelength[1] > wavelength[0]
@@ -145,15 +61,16 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width, weighting=False
     if not weighting:
         integral = np.trapz(flux[within_bounds].value,
                             wavelength[within_bounds].value)
+        error = np.sqrt(np.sum(flux[within_bounds].value))
     else:
-        integral = np.trapz(flux[within_bounds].value *
-                            triangle_weighting(wavelength[within_bounds],
-                                               center_wavelength),
+        triangle_weights = triangle_weighting(wavelength[within_bounds],
+                                              center_wavelength)
+        integral = np.trapz(flux[within_bounds].value * triangle_weights,
                             wavelength[within_bounds].value)
+        error = np.sqrt(np.sum(flux[within_bounds].value * triangle_weights))
 
     if not wavelengths_increasing:
         integral *= -1
-
 
     if plot:
         plt.figure()
@@ -164,69 +81,7 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width, weighting=False
             plt.plot(wavelength[within_bounds], triangle, 'r', lw=2)
         plt.show()
 
-    return integral
-
-
-def plot_spectrum_for_s_index(all_normalized_spectra):
-
-    fig, ax = plt.subplots(1, 4, figsize=(16, 4))
-
-    for spectrum in all_normalized_spectra:
-
-        order_h = spectrum.get_order(89)
-        order_k = spectrum.get_order(90)
-        order_r = spectrum.get_order(91)
-        order_v = spectrum.get_order(88)
-
-        alpha = 0.5
-
-        ax[0].plot(order_k.wavelength, order_k.flux, alpha=alpha)
-        ax[0].set_title('K')
-
-        ax[1].plot(order_h.wavelength, order_h.flux, alpha=alpha)
-        ax[1].set_title('H')
-
-        ax[2].plot(order_r.wavelength, order_r.flux, alpha=alpha)
-        ax[2].set_title('R')
-
-        ax[3].plot(order_v.wavelength, order_v.flux, alpha=alpha)
-        ax[3].set_title('V')
-
-
-    r_centroid = 3900 * u.Angstrom
-    v_centroid = 4000 * u.Angstrom
-    width = 12 * u.Angstrom
-
-    ax[0].set_xlim([(true_k_centroid - width).value,
-                    (true_k_centroid + width).value])
-    ax[1].set_xlim([(true_h_centroid - width).value,
-                    (true_h_centroid + width).value])
-    ax[2].set_xlim([(r_centroid - width).value, (r_centroid + width).value])
-    ax[3].set_xlim([(v_centroid - width).value, (v_centroid + width).value])
-
-    # K badpass:
-    hk_width = 1.05*u.Angstrom
-    rv_width = 20*u.Angstrom
-    ax[0].fill_between([(true_k_centroid - hk_width/2).value,
-                        (true_k_centroid + hk_width/2).value],
-                       0, 2, alpha=0.2, color='k', zorder=-100)
-
-    ax[1].fill_between([(true_h_centroid - hk_width/2).value,
-                        (true_h_centroid + hk_width/2).value],
-                       0, 2, alpha=0.2, color='k', zorder=-100)
-
-    ax[2].fill_between([(r_centroid - rv_width/2).value,
-                        (r_centroid + rv_width/2).value],
-                       0, 2, alpha=0.2, color='k', zorder=-100)
-
-    ax[3].fill_between([(v_centroid - rv_width/2).value,
-                        (v_centroid + rv_width/2).value],
-                       0, 2, alpha=0.2, color='k', zorder=-100)
-
-    for axes in ax:
-        axes.set_ylim([0, 2])
-
-    plt.show()
+    return integral, error
 
 
 def triangle_weighting(x, x0, fwhm=1.09*u.Angstrom):
@@ -280,19 +135,21 @@ def uncalibrated_s_index(spectrum):
     hk_width = 2 * hk_fwhm
     rv_width = 20 * u.Angstrom
 
-    h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width,
-                                 weighting=True)
-    k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width,
-                                 weighting=True)
-    r = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
-    v = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
+    h, h_err = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width,
+                                        weighting=True)
+    k, k_err = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width,
+                                        weighting=True)
+    r, r_err = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
+    v, v_err = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
 
-    s_ind = SIndex(h=h, k=k, r=r, v=v, time=spectrum.time)
+    s_ind = SIndex(h=h, k=k, r=r, v=v, time=spectrum.time,
+                   h_err=h_err, k_err=k_err, r_err=r_err, v_err=v_err)
     return s_ind
 
 
 class SIndex(object):
-    def __init__(self, h, k, r, v, k_factor=0.84, v_factor=1.0, time=None):
+    def __init__(self, h, k, r, v, k_factor=0.84, v_factor=1.0, time=None,
+                 h_err=None, k_err=None, r_err=None, v_err=None):
         """
         The pre-factors have been chosen to make the ``h`` and ``k`` values
         of the same order of magnitude; same for ``r`` and ``v``.
@@ -321,6 +178,11 @@ class SIndex(object):
         self.h = h
         self.k = k
 
+        self.r_err = r_err
+        self.v_err = v_err
+        self.h_err = h_err
+        self.k_err = k_err
+
         self.k_factor = k_factor
         self.v_factor = v_factor
 
@@ -332,8 +194,21 @@ class SIndex(object):
         Compute Eqn 2 of Isaacson+ 2010, for C1=1 and C2=0. This can be used
         to solve for C1 and C2.
         """
-        return ((self.h + self.k_factor * self.k) /
-                (self.r + self.v_factor * self.v))
+
+        scale_down_err = 100
+
+        uncalibrated_s_ind = ((self.h + self.k_factor * self.k) /
+                              (self.r + self.v_factor * self.v))
+
+        s_ind_err = (1 / (self.r + self.v_factor*self.v)**2 *
+                     (self.h_err**2 + self.k_factor**2 * self.k**2) +
+                     (self.h + self.k_factor*self.k)**2 /
+                     (self.r + self.v_factor * self.v)**4 *
+                     (self.r_err**2 + self.v_factor**2 * self.v_err**2)
+                     )**0.5 / scale_down_err
+
+        return Measurement(uncalibrated_s_ind, err_upper=s_ind_err,
+                           err_lower=s_ind_err)
 
     def calibrated(self, c1, c2):
         """
@@ -348,6 +223,7 @@ class SIndex(object):
 
         Returns
         -------
+        Calibrated S-index.
         """
         return c1 * self.uncalibrated + c2
 
@@ -391,18 +267,34 @@ class StarProps(object):
         else:
             dictionary['time'] = None
 
+
+
         return cls(s_apo=s_apo, s_mwo=s_mwo, name=dictionary['name'],
                    time=dictionary['time'])
 
 
 class Measurement(object):
     def __init__(self, value, err_upper=None, err_lower=None, default_err=0.1):
-        self.value = value
-        if err_upper == 0 or err_lower == 0:
-            self.err_upper = self.err_lower = default_err
-        else:
+
+        if hasattr(value, '__len__'):
+            value = np.asarray(value)
+            err_upper = np.asarray(err_upper)
+            err_lower = np.asarray(err_lower)
+            self.value = value
             self.err_upper = err_upper
             self.err_lower = err_lower
+
+            self.err_upper[self.err_upper == 0] = default_err
+            self.err_lower[self.err_lower == 0] = default_err
+
+        else:
+
+            self.value = value
+            if err_lower == 0 or err_upper == 0:
+                self.err_upper = self.err_lower = default_err
+            else:
+                self.err_upper = err_upper
+                self.err_lower = err_lower
 
     @classmethod
     def from_min_mean_max(cls, mean, min, max):
