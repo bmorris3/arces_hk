@@ -99,7 +99,7 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width,
             plt.plot(wavelength[within_bounds], triangle, 'r', lw=2)
         plt.show()
 
-    return integral, error
+    return Measurement(integral, err=error)
 
 
 def triangle_weighting(x, x0, fwhm=1.09*u.Angstrom):
@@ -153,21 +153,19 @@ def uncalibrated_s_index(spectrum):
     hk_width = 2 * hk_fwhm
     rv_width = 20 * u.Angstrom
 
-    h, h_err = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width,
+    h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width,
                                         weighting=True)
-    k, k_err = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width,
+    k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width,
                                         weighting=True)
-    r, r_err = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
-    v, v_err = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
+    r = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
+    v = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
 
-    s_ind = SIndex(h=h, k=k, r=r, v=v, time=spectrum.time,
-                   h_err=h_err, k_err=k_err, r_err=r_err, v_err=v_err)
+    s_ind = SIndex(h=h, k=k, r=r, v=v, time=spectrum.time)
     return s_ind
 
 
 class SIndex(object):
-    def __init__(self, h, k, r, v, k_factor=0.84, v_factor=1.0, time=None,
-                 h_err=None, k_err=None, r_err=None, v_err=None):
+    def __init__(self, h, k, r, v, k_factor=0.84, v_factor=1.0, time=None):
         """
         The pre-factors have been chosen to make the ``h`` and ``k`` values
         of the same order of magnitude; same for ``r`` and ``v``.
@@ -196,11 +194,6 @@ class SIndex(object):
         self.h = h
         self.k = k
 
-        self.r_err = r_err
-        self.v_err = v_err
-        self.h_err = h_err
-        self.k_err = k_err
-
         self.k_factor = k_factor
         self.v_factor = v_factor
 
@@ -213,20 +206,17 @@ class SIndex(object):
         to solve for C1 and C2.
         """
 
-        scale_down_err = 1
+        uncalibrated_s_ind = ((self.h.value + self.k_factor * self.k.value) /
+                              (self.r.value + self.v_factor * self.v.value))
 
-        uncalibrated_s_ind = ((self.h + self.k_factor * self.k) /
-                              (self.r + self.v_factor * self.v))
+        s_ind_err = (1 / (self.r.value + self.v_factor*self.v.value)**2 *
+                     (self.h.err**2 + self.k_factor**2 * self.k.err**2) +
+                     (self.h.value + self.k_factor*self.k.value)**2 /
+                     (self.r.value + self.v_factor * self.v.value)**4 *
+                     (self.r.err**2 + self.v_factor**2 * self.v.err**2)
+                     )**0.5
 
-        s_ind_err = (1 / (self.r + self.v_factor*self.v)**2 *
-                     (self.h_err**2 + self.k_factor**2 * self.k_err**2) +
-                     (self.h + self.k_factor*self.k)**2 /
-                     (self.r + self.v_factor * self.v)**4 *
-                     (self.r_err**2 + self.v_factor**2 * self.v_err**2)
-                     )**0.5 / scale_down_err
-
-        return Measurement(uncalibrated_s_ind, err_upper=s_ind_err,
-                           err_lower=s_ind_err)
+        return Measurement(uncalibrated_s_ind, err=s_ind_err)
 
     def calibrated(self, c1, c2):
         """
@@ -251,9 +241,23 @@ class SIndex(object):
         for key in dictionary:
             if key == 'time':
                 d[key] = Time(float(d[key]), format='jd')
+            elif key in ['h', 'k', 'r', 'v']:
+                d[key] = Measurement.from_dict(d[key])
             else:
                 d[key] = float(d[key])
         return cls(**d)
+
+    def to_dict(self):
+        d = dict()
+
+        for attr in self.__dict__:
+            value = getattr(self, attr)
+            if isinstance(value, Measurement):
+                value = value.__dict__
+            elif isinstance(value, Time):
+                value = str(value.jd)
+            d[attr] = value
+        return d
 
 
 class StarProps(object):
@@ -267,9 +271,7 @@ class StarProps(object):
     def s_mwo(self):
         if self._s_mwo is None:
             obj = query_catalog_for_object(self.name)
-            self._s_mwo = Measurement.from_min_mean_max(obj['Smean'],
-                                                        obj['Smin'],
-                                                        obj['Smax'])
+            self._s_mwo = Measurement.from_min_max(obj['Smin'], obj['Smax'])
         return self._s_mwo
 
     @classmethod
@@ -292,31 +294,28 @@ class StarProps(object):
 
 
 class Measurement(object):
-    def __init__(self, value, err_upper=None, err_lower=None, default_err=0.1):
+    def __init__(self, value, err=None, default_err=0.1):
 
         if hasattr(value, '__len__'):
             value = np.asarray(value)
-            err_upper = np.asarray(err_upper)
-            err_lower = np.asarray(err_lower)
+            err = np.asarray(err)
             self.value = value
-            self.err_upper = err_upper
-            self.err_lower = err_lower
+            self.err = err
 
-            self.err_upper[self.err_upper == 0] = default_err
-            self.err_lower[self.err_lower == 0] = default_err
+            self.err[self.err == 0] = default_err
 
         else:
 
             self.value = value
-            if err_lower == 0 or err_upper == 0:
-                self.err_upper = self.err_lower = default_err
+            if err == 0:
+                self.err = default_err
             else:
-                self.err_upper = err_upper
-                self.err_lower = err_lower
+                self.err = err
 
     @classmethod
-    def from_min_mean_max(cls, mean, min, max):
-        return cls(value=mean, err_upper=max-mean, err_lower=mean-min)
+    def from_min_max(cls, min, max):
+        mean = 0.5*(min + max)
+        return cls(value=mean, err=max-mean)
 
     @classmethod
     def from_dict(cls, dictionary):

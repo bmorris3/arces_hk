@@ -19,12 +19,12 @@ standards = ['hr6943', 'HR3454'] # ['hr6943']
 # hd222107 seems to have an anamolously low S_apo
 target_names = ['hd201251', 'hd217906', 'hd218356', #'hd222107',
                 'hd210905', 'hd220182', 'gj9781a']
-#
+
 # Night: UT161201
 target_names += ['HD41593', 'HD45088', 'HD68017', 'HD34411', 'HD39587',
                  'HD86728']
 
-# target_names = ['HD34411', 'HD86728', 'HD68017', 'hd222107']
+# target_names = ['HD34411', 'HD86728']
 
 all_spectra = []
 stars = []
@@ -102,12 +102,10 @@ plt.show()
 # construct_standard_star_table(target_names)
 
 s_mwo = Measurement([s.s_mwo.value for s in stars],
-                    err_upper=[s.s_mwo.err_upper for s in stars],
-                    err_lower=[s.s_mwo.err_lower for s in stars])
+                    err=[s.s_mwo.err for s in stars])
 
 s_apo = Measurement([s.s_apo.uncalibrated.value for s in stars],
-                    err_upper=[s.s_apo.uncalibrated.err_upper for s in stars],
-                    err_lower=[s.s_apo.uncalibrated.err_lower for s in stars])
+                    err=[s.s_apo.uncalibrated.err for s in stars])
 
 Xdata = np.vander(s_apo.value, 2)
 ydata = s_mwo.value
@@ -121,9 +119,8 @@ plt.text(0.015, 0.7, "c1 = {0:.2f}, \nc2 = {1:.2f}".format(*theta_best))
     # plt.text(s.s_apo.uncalibrated, s.s_mwo.value, s.name)
 
 plt.errorbar(s_apo.value, s_mwo.value,
-             xerr=np.vstack([s_apo.err_lower,
-                             s_apo.err_upper]),
-             yerr=np.vstack([s_mwo.err_lower, s_mwo.err_upper]),
+             xerr=s_apo.err,
+             yerr=s_mwo.err,
              fmt='.', color='k')
 plt.plot(s_apo.value, best_model, 'r')
 plt.xlabel('APO')

@@ -10,6 +10,7 @@ from glob import glob
 from astroquery.simbad import Simbad
 from astropy.table import Table
 from astropy.io import ascii
+from astropy.time import Time
 
 from .catalog import query_catalog_for_object
 from .activity import Measurement, SIndex, StarProps
@@ -117,8 +118,10 @@ def stars_to_json(star_list, output_path='star_data.json'):
         for attr in stars_attrs:
             value = getattr(star, attr)
 
-            if isinstance(value, Measurement) or isinstance(value, SIndex):
+            if isinstance(value, Measurement):
                 value = floats_to_strings(value.__dict__)
+            elif isinstance(value, SIndex):
+                value = value.to_dict()
             else:
                 value = str(value)
 
