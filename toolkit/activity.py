@@ -47,13 +47,17 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width,
     """
     wavelength = spectrum.wavelength
     wavelengths_increasing = wavelength[1] > wavelength[0]
+    flux = spectrum.flux
+    norm_const = spectrum.meta['normalization']
+
+    if not wavelengths_increasing:
+        wavelength = wavelength[::-1]
+        flux = flux[::-1]
 
     if (not center_wavelength < wavelength.max() and
             not center_wavelength > wavelength.min()):
         raise ValueError("This spectral order does not contain"
                          "the center_wavelength given.")
-
-    flux = spectrum.flux
 
     within_bounds = ((wavelength > center_wavelength - width/2) &
                      (wavelength < center_wavelength + width/2))
@@ -61,16 +65,30 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width,
     if not weighting:
         integral = np.trapz(flux[within_bounds].value,
                             wavelength[within_bounds].value)
-        error = np.sqrt(np.sum(flux[within_bounds].value))
+
+        lam = wavelength[within_bounds].value
+        sigma_f = (np.sqrt(flux[within_bounds].value *
+                           norm_const[within_bounds]) /
+                   norm_const[within_bounds])
+        sigma_f[np.isnan(sigma_f)] = np.nanmean(sigma_f)  # Fix negative fluxes
+        a2_k = 0.25 * (lam[1:] - lam[:-1])**2 * (sigma_f[1:]**2 +
+                                                 sigma_f[:-1]**2)
+        error = np.sqrt(np.sum(a2_k))
+
     else:
         triangle_weights = triangle_weighting(wavelength[within_bounds],
                                               center_wavelength)
         integral = np.trapz(flux[within_bounds].value * triangle_weights,
                             wavelength[within_bounds].value)
-        error = np.sqrt(np.sum(flux[within_bounds].value * triangle_weights))
 
-    if not wavelengths_increasing:
-        integral *= -1
+        lam = wavelength[within_bounds].value
+        sigma_f = (np.sqrt(flux[within_bounds].value *
+                           norm_const[within_bounds]) * triangle_weights /
+                   norm_const[within_bounds])
+        sigma_f[np.isnan(sigma_f)] = np.nanmean(sigma_f)  # Fix negative fluxes
+        a2_k = 0.25 * (lam[1:] - lam[:-1])**2 * (sigma_f[1:]**2 +
+                                                 sigma_f[:-1]**2)
+        error = np.sqrt(np.sum(a2_k))
 
     if plot:
         plt.figure()
@@ -195,13 +213,13 @@ class SIndex(object):
         to solve for C1 and C2.
         """
 
-        scale_down_err = 100
+        scale_down_err = 1
 
         uncalibrated_s_ind = ((self.h + self.k_factor * self.k) /
                               (self.r + self.v_factor * self.v))
 
         s_ind_err = (1 / (self.r + self.v_factor*self.v)**2 *
-                     (self.h_err**2 + self.k_factor**2 * self.k**2) +
+                     (self.h_err**2 + self.k_factor**2 * self.k_err**2) +
                      (self.h + self.k_factor*self.k)**2 /
                      (self.r + self.v_factor * self.v)**4 *
                      (self.r_err**2 + self.v_factor**2 * self.v_err**2)

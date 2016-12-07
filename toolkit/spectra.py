@@ -231,7 +231,6 @@ class EchelleSpectrum(object):
             #     plt.show()
 
             target_continuum_normalized_flux = target_order.flux / target_continuum_fit
-
             # if spectral_order in [88, 89, 90, 91]:
             #     fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
             #     # plt.plot(target_order.flux / target_continuum_fit)
@@ -255,6 +254,7 @@ class EchelleSpectrum(object):
 
             normalized_target_spectrum = Spectrum1D(target_continuum_normalized_flux,
                                                     target_order.wcs, mask=target_mask)
+            normalized_target_spectrum.meta['normalization'] = target_continuum_fit
 
             # Replace this order's spectrum with the continuum-normalized one
             self.spectrum_list[spectral_order] = normalized_target_spectrum
