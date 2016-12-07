@@ -43,7 +43,7 @@ def chi2(p, x, y, xerr, yerr):
     return -ln_likelihood(p, x, y, xerr, yerr)
 
 theta_init = np.arctan(m_init)
-lnf = 0.0
+lnf = np.log(15)
 init_params = [theta_init, b_init, lnf]
 
 args = (cals_s_apo.value, cals_s_mwo.value, cals_s_apo.err_lower,
