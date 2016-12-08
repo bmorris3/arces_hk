@@ -5,6 +5,9 @@ import numpy as np
 from scipy.optimize import fmin
 import emcee
 
+__all__ = ['mcmc_fit', 'initial_odr_fit']
+
+
 def v_vector(theta):
     """
     Hogg+ 2010, Eqn 29.

@@ -8,3 +8,4 @@ from .phoenix import *
 from .spectral_type import *
 from .utils import *
 from .masking import *
+from .analysis import *

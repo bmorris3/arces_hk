@@ -13,7 +13,8 @@ from astropy.time import Time
 from .catalog import query_catalog_for_object
 
 __all__ = ['integrate_spectrum_trapz', 'true_h_centroid', 'true_k_centroid',
-           'uncalibrated_s_index', 'StarProps', 'Measurement']
+           'uncalibrated_s_index', 'StarProps', 'Measurement',
+           'FitParameter']
 
 true_h_centroid = 3968.47 * u.Angstrom
 true_k_centroid = 3933.66 * u.Angstrom
@@ -267,11 +268,14 @@ class StarProps(object):
         self._s_mwo = s_mwo
         self.time = time
 
+    def get_s_mwo(self):
+        obj = query_catalog_for_object(self.name)
+        self._s_mwo = Measurement.from_min_max(obj['Smin'], obj['Smax'])
+
     @property
     def s_mwo(self):
         if self._s_mwo is None:
-            obj = query_catalog_for_object(self.name)
-            self._s_mwo = Measurement.from_min_max(obj['Smin'], obj['Smax'])
+            self.get_s_mwo()
         return self._s_mwo
 
     @classmethod
@@ -286,8 +290,6 @@ class StarProps(object):
             dictionary['time'] = Time(float(dictionary['time']), format='jd')
         else:
             dictionary['time'] = None
-
-
 
         return cls(s_apo=s_apo, s_mwo=s_mwo, name=dictionary['name'],
                    time=dictionary['time'])
@@ -322,3 +324,32 @@ class Measurement(object):
         kwargs = {key: float(dictionary[key]) for key in dictionary}
         return cls(**kwargs)
 
+
+class FitParameter(object):
+    def __init__(self, value, err_upper=None, err_lower=None, default_err=0.1):
+
+        if hasattr(value, '__len__'):
+            value = np.asarray(value)
+            err_upper = np.asarray(err_upper)
+            err_lower = np.asarray(err_lower)
+
+            self.value = value
+            self.err_upper = err_upper
+            self.err_lower = err_lower
+
+        else:
+
+            self.value = value
+            if err_upper == 0 or err_lower:
+                self.err_upper = default_err
+                self.err_lower = default_err
+            else:
+                self.err_upper = err_upper
+                self.err_lower = err_lower
+
+    @classmethod
+    def from_text(cls, path):
+        value, err_upper, err_lower = np.loadtxt(path)
+
+    def to_text(self, path):
+        np.savetxt(path, [self.value, self.err_upper, self.err_lower])

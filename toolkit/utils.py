@@ -5,8 +5,9 @@ import functools
 import json
 from json import encoder
 encoder.FLOAT_REPR = lambda o: format(o, '.8f')
-
 from glob import glob
+
+import numpy as np
 from astroquery.simbad import Simbad
 from astropy.table import Table
 from astropy.io import ascii
@@ -15,7 +16,8 @@ from astropy.time import Time
 from .catalog import query_catalog_for_object
 from .activity import Measurement, SIndex, StarProps
 
-__all__ = ['glob_spectra_paths', 'stars_to_json', 'json_to_stars']
+__all__ = ['glob_spectra_paths', 'stars_to_json', 'json_to_stars',
+           'parse_hires']
 
 
 results_dir = '/astro/users/bmmorris/Dropbox/Apps/ShareLaTeX/CaII_HAT-P-11/results/'
@@ -152,3 +154,29 @@ def json_to_stars(json_path):
 
     stars = [StarProps.from_dict(dictionary[star]) for star in dictionary]
     return stars
+
+
+def parse_hires(path):
+    text_file = open(path, 'r').read().splitlines()
+
+    header_line = text_file[0].split()
+    data = {header: [] for header in header_line}
+
+    for line in text_file[1:]:
+        split_line = line.split()
+
+        for i, header in enumerate(header_line):
+            if header in ['Signal/Noise', 'ModJD', 'S-value']:
+                data[header].append(float(split_line[i]))
+            else:
+                j = 1 if len(split_line) > len(header_line) else 0
+                data[header].append(split_line[i+j] + split_line[i])
+
+    table = Table(data)
+
+    floats = np.array(table['ModJD'].data) + 2440000.0 #+ 4e4 - 0.5
+
+    table['time'] = Time(floats, format='jd')
+
+    return table
+

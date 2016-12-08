@@ -73,6 +73,7 @@ for date_name, standard_name in zip(dates, standards):
 
         star = StarProps(name=target_spectrum.name, s_apo=s_apo,
                          time=target_spectrum.time)
+        star.get_s_mwo()
         stars.append(star)
 
 stars_to_json(stars, output_path='mwo_stars.json')
@@ -127,7 +128,3 @@ plt.xlabel('APO')
 plt.ylabel('MWO')
 plt.savefig('plots/s-index_calibration.png', bbox_inches='tight', dpi=200)
 plt.show()
-
-
-
-
