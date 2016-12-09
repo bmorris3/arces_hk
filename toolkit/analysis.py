@@ -16,7 +16,7 @@ def v_vector(theta):
 
 
 def ln_likelihood(p, x, y, x_err, y_err, max_theta=np.pi/2, min_theta=0,
-                  min_lnf=-5):
+                  min_lnf=0):
     """
     Hogg+ 2010, Eqn 30., with an additional parameter that scales up the
     uncertainty in the x dimension, ``x_err``, by a constant factor.
@@ -24,10 +24,12 @@ def ln_likelihood(p, x, y, x_err, y_err, max_theta=np.pi/2, min_theta=0,
     The likelihood has been written assuming x and y uncertainties are
     uncorrelated.
     """
-    theta, b, lnf = p
+    # theta, b, lnf = p
+    theta, b, lnf, V = p
 
     # Assert prior:
-    if theta < min_theta or theta > max_theta or lnf < min_lnf:
+    if (theta < min_theta or theta > max_theta or lnf < min_lnf or V < 0
+        or b < -0.5 or b > 0.5):
         return -np.inf
 
     v = v_vector(theta)
@@ -35,7 +37,10 @@ def ln_likelihood(p, x, y, x_err, y_err, max_theta=np.pi/2, min_theta=0,
 
     delta = v[0][0] * x + v[1][0] * y - b * np.cos(theta)
     sigma_sq = v[0][0]**2 * (f * x_err)**2 + v[1][0]**2 * y_err**2
-    ln_like = np.sum(-0.5 * (delta**2 / sigma_sq + np.log(sigma_sq) +
+    # ln_like = np.sum(-0.5 * (delta**2 / sigma_sq + np.log(sigma_sq) +
+    #                  np.log(2*np.pi)))
+
+    ln_like = np.sum(-0.5 * (delta**2 / (sigma_sq + V) + np.log(sigma_sq + V) +
                      np.log(2*np.pi)))
 
     return ln_like
@@ -67,7 +72,9 @@ def mcmc_fit(s_apo, s_mwo, init_guess, nwalkers, n_steps_burnin=1500,
     ndim = len(init_guess)
     p0 = [[init_guess[0] + 0.05 * np.random.randn(),
            init_guess[1] + 0.01 * np.random.randn(),
-           init_guess[2] + 0.001 * np.random.randn()]
+           # init_guess[2] + 0.001 * np.random.randn()]
+           init_guess[2] + 0.001 * np.random.randn(),
+           init_guess[3] + 0.001 * np.random.randn()]
           for i in range(nwalkers)]
 
     args = (s_apo.value, s_mwo.value, s_apo.err, s_mwo.err)

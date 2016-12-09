@@ -270,7 +270,7 @@ class StarProps(object):
 
     def get_s_mwo(self):
         obj = query_catalog_for_object(self.name)
-        self._s_mwo = Measurement.from_min_max(obj['Smin'], obj['Smax'])
+        self._s_mwo = Measurement(obj['Smean'], err=obj['e_Smean'])
 
     @property
     def s_mwo(self):
