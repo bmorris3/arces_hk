@@ -15,14 +15,14 @@ root_dir = '/Users/bmmorris/data/'
 dates = ['UT160918', 'UT161202']
 standards = ['hr6943', 'HR3454'] # ['hr6943']
 
-# Night: UT160918
-# hd222107 seems to have an anamolously low S_apo
+# # Night: UT160918
+# # hd222107 seems to have an anamolously low S_apo
 target_names = ['hd201251', 'hd217906', 'hd218356', #'hd222107',
                 'hd210905', 'hd220182', 'gj9781a']
 
 # Night: UT161201
-target_names += ['HD41593', 'HD45088', 'HD68017', 'HD34411', 'HD39587',
-                 'HD86728']
+target_names += ['HD41593', 'HD45088', 'HD68017', 'HD34411', 'HD39587']
+#'HD86728'
 
 # target_names = ['HD34411', 'HD86728']
 

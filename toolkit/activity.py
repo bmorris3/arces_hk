@@ -281,8 +281,8 @@ class StarProps(object):
     @classmethod
     def from_dict(cls, dictionary):
         s_apo = SIndex.from_dict(dictionary['s_apo'])
-        if 's_mwo' in dictionary:
-            s_mwo = Measurement.from_dict(dictionary['s_mwo'])
+        if '_s_mwo' in dictionary and dictionary['_s_mwo'] != "None":
+            s_mwo = Measurement.from_dict(dictionary['_s_mwo'])
         else:
             s_mwo = None
 
@@ -296,7 +296,7 @@ class StarProps(object):
 
 
 class Measurement(object):
-    def __init__(self, value, err=None, default_err=0.1):
+    def __init__(self, value, err=None, default_err=1e10):
 
         if hasattr(value, '__len__'):
             value = np.asarray(value)
@@ -324,9 +324,12 @@ class Measurement(object):
         kwargs = {key: float(dictionary[key]) for key in dictionary}
         return cls(**kwargs)
 
+    def __repr__(self):
+        return "<{0}: {1} +/-{2}>".format(self.__class__.__name__,
+                                          self.value, self.err)
 
 class FitParameter(object):
-    def __init__(self, value, err_upper=None, err_lower=None, default_err=0.1):
+    def __init__(self, value, err_upper=None, err_lower=None, default_err=1e10):
 
         if hasattr(value, '__len__'):
             value = np.asarray(value)
@@ -340,7 +343,7 @@ class FitParameter(object):
         else:
 
             self.value = value
-            if err_upper == 0 or err_lower:
+            if err_upper == 0 or err_lower == 0:
                 self.err_upper = default_err
                 self.err_lower = default_err
             else:
@@ -353,3 +356,8 @@ class FitParameter(object):
 
     def to_text(self, path):
         np.savetxt(path, [self.value, self.err_upper, self.err_lower])
+
+    def __repr__(self):
+        return "<{0}: {1} +{2} -{3}>".format(self.__class__.__name__,
+                                             self.value, self.err_upper,
+                                             self.err_lower)
