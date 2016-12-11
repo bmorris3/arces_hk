@@ -30,16 +30,16 @@ def model(p, x, y, yerr):
 
 
 def lnlike_gp(p, x, y, yerr):
-    mean, a, per1, per2, lns = p
-    gp = george.GP(a * CosineKernel(per1) + CosineKernel(per2))
+    mean, lna, per1, per2, lns = p
+    gp = george.GP(np.exp(lna) * CosineKernel(per1) + CosineKernel(per2))
     gp.compute(x, np.sqrt(yerr ** 2 + np.exp(2 * lns)))
     return gp.lnlikelihood(y - model(p, x, y, yerr))
 
 
 def lnprior(p):
-    mean, a, per1, per2, lns = p
+    mean, lna, per1, per2, lns = p
     if not ((0 < mean < 1) and (20 < per1 < 40) and (8*365 < per2 < 50*365)
-            and (lns < 1) and (0 < a)):
+            and (lns < 1) and (-50 < lna < 1)):
         return -np.inf
     else:
         return 0
@@ -59,37 +59,37 @@ def fit_gp(initial, data, nwalkers=10):
 
     while len(p0) < nwalkers:
 
-        p0_trial = [initial[0] + 0.05 * np.random.randn(),
+        p0_trial = [initial[0] + 1 * np.random.randn(),
                     initial[1] + 0.05 * np.random.randn(),
                     initial[2] + 1 * np.random.randn(),
                     initial[3] + 200 * np.random.randn(),
-                    initial[4] + 1 * np.random.randn()]
+                    initial[4] + 0.1 * np.random.randn()]
         if not np.isfinite(lnprior(p0_trial)):
             p0.append(p0_trial)
 
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob_gp, args=data)
 
     print("Running burn-in")
-    p0, lnp, _ = sampler.run_mcmc(p0, 2000)
+    p0, lnp, _ = sampler.run_mcmc(p0, 1000)
     sampler.reset()
 
     print("Running second burn-in")
     p = p0[np.argmax(lnp)]
     p0 = [p + 1e-8 * np.random.randn(ndim) for i in range(nwalkers)]
-    p0, _, _ = sampler.run_mcmc(p0, 2000)
+    p0, _, _ = sampler.run_mcmc(p0, 1000)
     sampler.reset()
 
     print("Running production")
-    p0, _, _ = sampler.run_mcmc(p0, 5000)
+    p0, _, _ = sampler.run_mcmc(p0, 3000)
 
     return sampler
 
 
-init_guess = [0.48, 0.1, 29.2, 20*365, -4.0]
+init_guess = [-0.7, 0.1, 29.2, 20*365, -4.0]
 args = (x, y, yerr)
 
 # Set up the Gaussian process.
-kernel = 0.5 * CosineKernel(29.2) + CosineKernel(20 * 365)
+kernel = np.exp(-0.7) * CosineKernel(29.2) + CosineKernel(20 * 365)
 gp = george.GP(kernel)
 
 # Pre-compute the factorization of the matrix.
@@ -118,9 +118,9 @@ corner(samples, labels=['mean', 'a', 'per1', 'per2', 'lns'])
 plt.figure()
 plt.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0)
 for s in samples[np.random.randint(len(samples), size=10)]:
-    mean, a, per1, per2, lns = s
+    mean, lna, per1, per2, lns = s
 
-    gp = george.GP(a * CosineKernel(per1) + CosineKernel(per2))
+    gp = george.GP(np.exp(lna) * CosineKernel(per1) + CosineKernel(per2))
     gp.compute(x, np.sqrt(yerr**2 + np.exp(2*lns)))
     m = gp.sample_conditional(y - model(s, x, y, yerr), t) + model(s, t, y, yerr)
     plt.plot(t, m, color="#4682b4", alpha=0.8)
