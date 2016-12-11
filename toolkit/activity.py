@@ -280,7 +280,14 @@ class StarProps(object):
 
     @classmethod
     def from_dict(cls, dictionary):
-        s_apo = SIndex.from_dict(dictionary['s_apo'])
+        if dictionary['s_apo'] != 'None':
+            if "value" in dictionary['s_apo']:
+                s_apo = Measurement.from_dict(dictionary['s_apo'])
+            else:
+                s_apo = SIndex.from_dict(dictionary['s_apo'])
+        else:
+            s_apo = None
+
         if '_s_mwo' in dictionary and dictionary['_s_mwo'] != "None":
             s_mwo = Measurement.from_dict(dictionary['_s_mwo'])
         else:
@@ -296,23 +303,22 @@ class StarProps(object):
 
 
 class Measurement(object):
-    def __init__(self, value, err=None, default_err=1e10):
+    def __init__(self, value=None, err=None, time=None, default_err=1e10):
 
         if hasattr(value, '__len__'):
-            value = np.asarray(value)
-            err = np.asarray(err)
-            self.value = value
-            self.err = err
+            self.value = np.asarray(value)
+            self.err = np.asarray(err)
 
             self.err[self.err == 0] = default_err
 
         else:
-
             self.value = value
             if err == 0:
                 self.err = default_err
             else:
                 self.err = err
+
+        self.time = Time(time, format='jd') if time is not None else None
 
     @classmethod
     def from_min_max(cls, min, max):
@@ -321,12 +327,25 @@ class Measurement(object):
 
     @classmethod
     def from_dict(cls, dictionary):
-        kwargs = {key: float(dictionary[key]) for key in dictionary}
+        kwargs = {key: float(dictionary[key]) if dictionary[key] != "None" else None
+                  for key in dictionary}
         return cls(**kwargs)
 
     def __repr__(self):
-        return "<{0}: {1} +/-{2}>".format(self.__class__.__name__,
+        return "<{0}: {1} +/- {2}>".format(self.__class__.__name__,
                                           self.value, self.err)
+
+    def __getitem__(self, item):
+
+        new_attrs = dict()
+
+        for attr in ['value', 'err', 'time']:
+            attr_value = getattr(self, attr)
+            if attr_value is not None and hasattr(attr_value, '__len__'):
+                new_attrs[attr] = attr_value[item]
+
+        return Measurement(**new_attrs)
+
 
 class FitParameter(object):
     def __init__(self, value, err_upper=None, err_lower=None, default_err=1e10):
