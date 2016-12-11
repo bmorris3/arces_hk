@@ -1,9 +1,10 @@
 import george
-from george.kernels import CosineKernel, ExpSine2Kernel
+from george.kernels import CosineKernel
 import numpy as np
 from toolkit import json_to_stars
 import matplotlib.pyplot as plt
 import emcee
+from corner import corner
 
 hat11_keck = json_to_stars('hat11_keck_calibrated.json')
 hat11_apo = json_to_stars('hat11_apo_calibrated.json')
@@ -30,17 +31,17 @@ def model(p, x, y, yerr):
 
 
 def lnlike_gp(p, x, y, yerr):
-    mean, lna, lngamma, per1, per2, lns = p
-    gp = george.GP(np.exp(lna) * ExpSine2Kernel(np.exp(lngamma), per1) +
+    mean, lna, per1, per2, lns = p
+    gp = george.GP(np.exp(lna) * CosineKernel(per1) +
                    CosineKernel(per2))
     gp.compute(x, np.sqrt(yerr ** 2 + np.exp(2 * lns)))
     return gp.lnlikelihood(y - model(p, x, y, yerr))
 
 
 def lnprior(p):
-    mean, lna, lngamma, per1, per2, lns = p
-    if not ((0 < mean < y.max()) and (25 < per1 < 35) and (5*365 < per2 < 40*365)
-            and (lns < 1) and (-50 < lna < 10) and (3 < lngamma < 10)):
+    mean, lna, per1, per2, lns = p
+    if not ((0 < mean < y.max()) and (25 < per1 < 35) and (5*365 < per2 < 50*365)
+            and (lns < 1) and (-50 < lna < 10)):
         return -np.inf
     else:
         return 0
@@ -58,13 +59,12 @@ def fit_gp(initial, data, nwalkers=12):
 
     p0 = []
 
-    mean, lna, lngamma, per1, per2, lns = initial
+    mean, lna, per1, per2, lns = initial
 
     while len(p0) < nwalkers:
 
         p0_trial = [mean + 0.01 * np.random.randn(),
                     lna + 0.05 * np.random.randn(),
-                    lngamma + 0.1 * np.random.randn(),
                     per1 + 1 * np.random.randn(),
                     per2 + 200 * np.random.randn(),
                     lns + 0.1 * np.random.randn()]
@@ -90,14 +90,13 @@ def fit_gp(initial, data, nwalkers=12):
     return sampler
 
 
-init_guess = [0.45, -8, 4.5, 29.2, 20*365, -4.5]
+init_guess = [0.45, -8, 29.2, 20*365, -4.5]
 args = (x, y, yerr)
 
 # Set up the Gaussian process.
-mean, lna, lngamma, per1, per2, lns = init_guess
+mean, lna, per1, per2, lns = init_guess
 
-kernel = (np.exp(lna) * ExpSine2Kernel(np.exp(lngamma), per1) +
-          CosineKernel(per2))
+kernel = (np.exp(lna) * CosineKernel(per1) + CosineKernel(per2))
 gp = george.GP(kernel)
 
 # Pre-compute the factorization of the matrix.
@@ -118,26 +117,24 @@ plt.show()
 sampler = fit_gp(init_guess, args)
 
 samples = sampler.flatchain
-t = np.linspace(x.min(), x.max(), 10000)
 
-from corner import corner
 fig, ax = plt.subplots(samples.shape[1], samples.shape[1], figsize=(8, 8))
 corner(samples, fig=fig,
-       labels=['mean', 'lna', 'lngamma', 'per1', 'per2', 'lns'])
-plt.show()
+       labels=['mean', 'lna', 'per1', 'per2', 'lns'])
 
-# plt.figure()
-# plt.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0)
-# for s in samples[np.random.randint(len(samples), size=10)]:
-#     mean, lna, lngamma, per1, per2, lns = s
-#
-#     gp = george.GP(np.exp(lna) * ExpSine2Kernel(np.exp(lngamma), per1) +
-#                    CosineKernel(per2))
-#     gp.compute(x, np.sqrt(yerr**2 + np.exp(2*lns)))
-#     m = gp.sample_conditional(y - model(s, x, y, yerr), t) + model(s, t, y, yerr)
-#     plt.plot(t, m, color="#4682b4", alpha=0.8)
-# plt.ylabel(r"$y$")
-# plt.xlabel(r"$t$")
-# plt.xlim(x.min(), x.max())
-# plt.title("results with Gaussian process noise model")
-# plt.show()
+t = np.linspace(x.min(), x.max()+x.ptp()/4, 2000)
+
+plt.figure()
+plt.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0)
+for s in samples[np.random.randint(len(samples), size=50)]:
+    mean, lna, per1, per2, lns = s
+
+    gp = george.GP(np.exp(lna) * CosineKernel(per1) + CosineKernel(per2))
+    gp.compute(x, np.sqrt(yerr**2 + np.exp(2*lns)))
+    m = gp.sample_conditional(y - model(s, x, y, yerr), t) + model(s, t, y, yerr)
+    plt.plot(t, m, color="#4682b4", alpha=0.3)
+plt.ylabel(r"$y$")
+plt.xlabel(r"$t$")
+plt.xlim(x.min(), x.max())
+plt.title("results with Gaussian process noise model")
+plt.show()
