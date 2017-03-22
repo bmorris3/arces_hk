@@ -390,7 +390,8 @@ class FitParameter(object):
 
     @classmethod
     def from_text(cls, path):
-        value, err_upper, err_lower = np.loadtxt(path)
+        value, err_upper, err_lower = np.loadtxt(path, unpack=True)
+        return cls(value, err_lower=err_lower, err_upper=err_upper)
 
     def to_text(self, path):
         np.savetxt(path, [self.value, self.err_upper, self.err_lower])

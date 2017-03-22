@@ -1,7 +1,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
+from .catalog import get_k2_epic_catalog
+
 from astroquery.simbad import Simbad
 
 __all__ = ['query_for_spectral_type', 'query_for_T_eff']
@@ -105,7 +106,8 @@ def query_for_T_eff(identifier):
     Get the approximate effective temperature of a star.
 
     Query SIMBAD for the spectral type of the target, convert
-    spectral type to approximate effective temperature.
+    spectral type to approximate effective temperature, in general.
+    If the target is in the K2 EPIC, use the EPIC Teff.
 
     Parameters
     ----------
@@ -117,10 +119,16 @@ def query_for_T_eff(identifier):
     T_eff : int
         Approximate effective temperature of the star.
     """
-    sptype = query_for_spectral_type(identifier)
-    while not sptype in effective_temperatures:
-        letter, number = list(sptype)
-        sptype = letter + str(int(number) - 1)
+    if not identifier.startswith('EPIC'):
+        sptype = query_for_spectral_type(identifier)
+        while not sptype in effective_temperatures:
+            letter, number = list(sptype)
+            sptype = letter + str(int(number) - 1)
 
-    T_eff = effective_temperatures[sptype]
+        T_eff = effective_temperatures[sptype]
+    else:
+        k2_epic_table = get_k2_epic_catalog()
+        epic_number = int(identifier[4:]) # Remove the EPIC, make int
+        T_eff = k2_epic_table.loc[epic_number]['Teff']
+
     return T_eff
