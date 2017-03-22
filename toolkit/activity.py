@@ -270,7 +270,13 @@ class StarProps(object):
 
     def get_s_mwo(self):
         obj = query_catalog_for_object(self.name)
-        self._s_mwo = Measurement(obj['Smean'], err=obj['e_Smean'])
+
+        # Replace the uncertainty by twice the mean uncertainty
+        # of the Duncan 1991 tables if no uncertainty is provided
+        # (calculated by get_mean_mwo_error.py)
+        error_Smean = obj['e_Smean'] if obj['e_Smean'] != 0 else 10 * 0.0205
+
+        self._s_mwo = Measurement(obj['Smean'], err=error_Smean)
 
     @property
     def s_mwo(self):
@@ -318,7 +324,17 @@ class Measurement(object):
             else:
                 self.err = err
 
-        self.time = Time(time, format='jd') if time is not None else None
+        if isinstance(time, Time):
+            self.time = time
+        elif hasattr(time, 'real'):  # if time is float
+            self.time = Time(time, format='jd')
+        elif isinstance(time, list):
+            if hasattr(time[0], 'real'):
+                self.time = Time(time, format='jd')
+            else:
+                self.time = Time(time)
+        else:
+            self.time = None
 
     @classmethod
     def from_min_max(cls, min, max):
@@ -327,7 +343,10 @@ class Measurement(object):
 
     @classmethod
     def from_dict(cls, dictionary):
-        kwargs = {key: float(dictionary[key]) if dictionary[key] != "None" else None
+        kwargs = {key: float(dictionary[key])
+                  if (dictionary[key] != "None" and
+                      dictionary[key] is not None)
+                  else None
                   for key in dictionary}
         return cls(**kwargs)
 

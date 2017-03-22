@@ -15,8 +15,16 @@ def v_vector(theta):
     return [[-np.sin(theta)], [np.cos(theta)]]
 
 
-def ln_likelihood(p, x, y, x_err, y_err, max_theta=np.pi/2, min_theta=0,
-                  min_lnf=0):
+def lnprior(p, max_theta=1.55, min_theta=1.5, min_lnf=0):
+    theta, b, lnf = p
+    if not ((min_theta < theta < max_theta) and (-0.5 < b < 0.5) and
+                (lnf > min_lnf)):
+        return -np.inf
+    else:
+        return 0
+
+
+def ln_likelihood(p, x, y, x_err, y_err):
     """
     Hogg+ 2010, Eqn 30., with an additional parameter that scales up the
     uncertainty in the x dimension, ``x_err``, by a constant factor.
@@ -29,12 +37,16 @@ def ln_likelihood(p, x, y, x_err, y_err, max_theta=np.pi/2, min_theta=0,
 
     # Assert prior:
     # lnf < min_lnf or V < 0
-    if (theta < min_theta or theta > max_theta or b < -0.5 or b > 0.5
-        or lnf < min_lnf):
-        return -np.inf
+    # if (theta < min_theta or theta > max_theta or b < -0.5 or b > 0.5
+    #     or lnf < min_lnf):
+
 
     v = v_vector(theta)
     f = np.exp(lnf)
+
+    lnp = lnprior(p)
+    if not np.isfinite(lnp):
+        return lnp
 
     delta = v[0][0] * x + v[1][0] * y - b * np.cos(theta)
     sigma_sq = v[0][0]**2 * (f * x_err)**2 + v[1][0]**2 * y_err**2
@@ -65,15 +77,17 @@ def initial_odr_fit(s_apo, s_mwo, init_guess):
     return initial_params
 
 
-def mcmc_fit(s_apo, s_mwo, init_guess, nwalkers, n_steps_burnin=1500,
-             n_steps_postburnin=4000, ln_likelihood=ln_likelihood):
+def mcmc_fit(s_apo, s_mwo, init_guess, nwalkers, n_steps_burnin=2000,
+             n_steps_postburnin=5000, ln_likelihood=ln_likelihood):
     ndim = len(init_guess)
-    p0 = [[init_guess[0] + 0.05 * np.random.randn(),
-           init_guess[1] + 0.01 * np.random.randn(),
-           init_guess[2] + 0.001 * np.random.randn()]
-           # init_guess[2] + 0.001 * np.random.randn(),
-           # init_guess[3] + 0.001 * np.random.randn()]
-          for i in range(nwalkers)]
+    p0 = []
+
+    while len(p0) < nwalkers:
+        trial = [init_guess[0] + 0.05 * np.random.randn(),
+                  init_guess[1] + 0.01 * np.random.randn(),
+                  init_guess[2] + 0.001 * np.random.randn()]
+        if np.isfinite(lnprior(trial)):
+            p0.append(trial)
 
     args = (s_apo.value, s_mwo.value, s_apo.err, s_mwo.err)
     sampler = emcee.EnsembleSampler(nwalkers, ndim, ln_likelihood, args=args,
@@ -83,7 +97,10 @@ def mcmc_fit(s_apo, s_mwo, init_guess, nwalkers, n_steps_burnin=1500,
     p1 = sampler.run_mcmc(p0, n_steps_burnin)[0]
     sampler.reset()
 
+    p2 = sampler.run_mcmc(p1, n_steps_burnin)[0]
+    sampler.reset()
+
     # Now run for this many more steps:
-    sampler.run_mcmc(p1, n_steps_postburnin)
+    sampler.run_mcmc(p2, n_steps_postburnin)
     samples = sampler.chain[:, :, :].reshape((-1, ndim))
     return samples

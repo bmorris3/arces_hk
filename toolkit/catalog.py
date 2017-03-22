@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 from astroquery.vizier import Vizier
+Vizier.ROW_LIMIT = 1e10   # Otherwise would only show first 50 values
 
 __all__ = ['get_duncan_catalog', 'sindex_catalog', 'query_catalog_for_object']
 
@@ -26,7 +27,6 @@ def get_duncan_catalog():
 
     if sindex_catalog is None:
         catalogs = Vizier.get_catalogs(duncan1991)
-        Vizier.ROW_LIMIT = -1   # Otherwise would only show first 50 values
         catalog_table = catalogs[0]  # This is the table with the data
         sindex_catalog = catalog_table
 

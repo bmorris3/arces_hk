@@ -128,9 +128,8 @@ corner(samples, fig=fig,
        labels=['s0', 'alpha', 'per', 't0', 'lna', 'tau'])
 fig.savefig('plots/corner.png', bbox_inches='tight', dpi=200)
 plt.show()
-#t = np.linspace(x.min(), x.max()+x.ptp(), 1500)
 
-t = np.concatenate((x, np.linspace(x.min(), x.max()+x.ptp(), 500)))
+t = np.concatenate((x, np.linspace(x.min(), x.max()+x.ptp(), 300)))
 t = np.sort(t)
 
 plt.figure()
@@ -142,10 +141,10 @@ for s in samples[np.random.randint(len(samples), size=250)]:
     m = gp.sample_conditional(y - model(s, x), t) + model(s, t)
     plt.plot_date(Time(t, format='jd').plot_date, m, '-',
                   color="#4682b4", alpha=0.05)
-plt.errorbar(Time(x, format='jd').plot_date, y, yerr=yerr, fmt=".k", capsize=0)
+plt.errorbar(Time(x, format='jd').plot_date, y, yerr=yerr, fmt=".k", capsize=0,
+             zorder=10)
 plt.ylabel(r"$S$-index")
-#plt.xlim(t.min(), t.max())
-plt.title(" Gaussian process model")
+plt.title("Gaussian process model")
 plt.savefig('plots/model.png', bbox_inches='tight', dpi=200)
 plt.show()
 

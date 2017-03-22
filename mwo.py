@@ -12,8 +12,8 @@ from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
                      StarProps, Measurement, stars_to_json)
 
 root_dir = '/Users/bmmorris/data/'
-dates = ['UT160918', 'UT161202']
-standards = ['hr6943', 'HR3454'] # ['hr6943']
+dates = ['UT160918', 'UT161202', 'Q1UW09/UT170317']
+standards = ['hr6943', 'HR3454', 'G191B2b'] # ['hr6943']
 
 # # Night: UT160918
 # # hd222107 seems to have an anamolously low S_apo
@@ -25,6 +25,10 @@ target_names += ['HD41593', 'HD45088', 'HD68017', 'HD34411', 'HD39587']
 #'HD86728'
 
 # target_names = ['HD34411', 'HD86728']
+
+# Night: UT170317
+target_names += ['HD110833', 'HD266611', 'HD47752', 'HD47752', 'HD79555',
+                 'HD82106', 'HD87884']# , 'HD98230']
 
 all_spectra = []
 stars = []
@@ -99,8 +103,8 @@ for axis in ax[0, :]:
 fig.savefig('plots/spectra.png', bbox_inches='tight', dpi=200)
 plt.show()
 
-# from toolkit.utils import construct_standard_star_table
-# construct_standard_star_table(target_names)
+from toolkit.utils import construct_standard_star_table
+construct_standard_star_table(target_names)
 
 s_mwo = Measurement([s.s_mwo.value for s in stars],
                     err=[s.s_mwo.err for s in stars])
@@ -114,6 +118,7 @@ theta_best, resid, rank, singvals = np.linalg.lstsq(Xdata, ydata)
 
 best_model = theta_best[0] * s_apo.value + theta_best[1]
 
+plt.figure()
 plt.text(0.015, 0.7, "c1 = {0:.2f}, \nc2 = {1:.2f}".format(*theta_best))
 
 # for s in stars:
@@ -126,5 +131,7 @@ plt.errorbar(s_apo.value, s_mwo.value,
 plt.plot(s_apo.value, best_model, 'r')
 plt.xlabel('APO')
 plt.ylabel('MWO')
+plt.xlim([0.008, 0.07])
+plt.ylim([0.3, 2.0])
 plt.savefig('plots/s-index_calibration.png', bbox_inches='tight', dpi=200)
 plt.show()

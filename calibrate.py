@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from astropy.time import Time
 from corner import corner
 
 from toolkit import (json_to_stars, Measurement, mcmc_fit, stars_to_json,
@@ -12,7 +11,8 @@ calstars = json_to_stars('mwo_stars.json')
 hat11 = json_to_stars('hat11.json')
 
 cals_s_mwo = Measurement([s.s_mwo.value for s in calstars],
-                         err=[s.s_mwo.err for s in calstars])
+                         err=[s.s_mwo.err for s in calstars],
+                         time=[s.time.jd for s in calstars])
 
 # Make these uncertainties the quadrature sum of the fractional uncertainty
 # measured by MWO and the Poisson flux uncertainty that I calculated
@@ -23,11 +23,12 @@ cals_s_apo = Measurement([s.s_apo.uncalibrated.value for s in calstars],
                          err=[np.sqrt(s.s_apo.uncalibrated.err**2 +
                                       scaled_err**2)
                               for s, scaled_err in zip(calstars,
-                                                       scaled_apo_err)])
+                                                       scaled_apo_err)],
+                         time=[s.time.jd for s in calstars])
 
 hat11_s_apo = Measurement([s.s_apo.uncalibrated.value for s in hat11],
                           err=[s.s_apo.uncalibrated.err for s in hat11],
-                          time=[s.s_apo.time for s in hat11])
+                          time=[s.s_apo.time.jd for s in hat11])
 
 sort = np.argsort(cals_s_apo.value)
 
@@ -58,14 +59,21 @@ samples[:, 2] = np.exp(samples[:, 2])
 m_mcmc, b_mcmc, f_mcmc = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
                              zip(*np.percentile(samples, [16, 50, 84],
                                         axis=0)))
-# m_mcmc, b_mcmc, f_mcmc, v_mcmc = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
-#                              zip(*np.percentile(samples, [16, 50, 84],
-#                                                 axis=0)))
 
 c1 = FitParameter(m_mcmc[0], err_upper=m_mcmc[1], err_lower=m_mcmc[2])
 c2 = FitParameter(b_mcmc[0], err_upper=b_mcmc[1], err_lower=b_mcmc[2])
 
 model_best = c1.value * cals_s_apo.value + c2.value
+
+##############################################################################
+# Solve for HAT-P-11 S-indices:
+hat11_s_mwo_err = np.sqrt((f_mcmc[0] * hat11_s_apo.value * c1.err_lower)**2 +
+                          (c1.value * f_mcmc[0] * hat11_s_apo.err)**2 +
+                          c2.err_lower**2)
+
+hat11_s_mwo = Measurement(c1.value * hat11_s_apo.value + c2.value,
+                          err=hat11_s_mwo_err,
+                          time=hat11_s_apo.time)
 
 ##############################################################################
 # Plot fit results
@@ -75,17 +83,8 @@ ax.plot(cals_s_apo.value[sort], model_best[sort],
 
 ax.errorbar(cals_s_apo.value, cals_s_mwo.value,
             xerr=f_mcmc[0] * cals_s_apo.err,
-            # xerr=cals_s_apo.err,
             yerr=cals_s_mwo.err, fmt='o', color='k',
             ecolor='gray', capsize=0)
-
-# Solve for HAT-P-11 S-indices:
-hat11_s_mwo_err = np.sqrt((f_mcmc[0] * hat11_s_apo.value * c1.err_lower)**2 +
-                          (c1.value * f_mcmc[0] * hat11_s_apo.err)**2 +
-                          c2.err_lower**2)
-
-hat11_s_mwo = Measurement(c1.value * hat11_s_apo.value + c2.value,
-                          err=hat11_s_mwo_err)
 
 ax.errorbar(hat11_s_apo.value, hat11_s_mwo.value,
             xerr=f_mcmc[0] * hat11_s_apo.err, yerr=hat11_s_mwo.err,
@@ -100,8 +99,8 @@ note = ("$C_1 = {0:.2f}^{{+ {1:.2f} }}_{{- {2:.2f} }}$\n".format(*m_mcmc) +
 
 ax.text(0.05, 0.1, note, ha='right', fontsize=fontsize)
 ax.set_aspect('auto', 'datalim')
-ax.set_xlim([0, 0.06])
-ax.set_ylim([0, 1])
+ax.set_xlim([0, 0.075])
+ax.set_ylim([0, 2])
 fig.savefig('plots/s-index_calibration.png', bbox_inches='tight', dpi=200)
 
 corner(samples[:, :], labels=[r'$C_1$', '$C_2$', 'f'])
@@ -120,12 +119,10 @@ stars_to_json(hat11_apo_calibrated, 'hat11_apo_calibrated.json')
 hires = parse_hires('hat-p-11_svals.txt')
 
 hat11_s_mwo_mean = c1.value * hat11_s_apo.value.mean() + c2.value
-# hat11_s_mwo_mean_err = np.sqrt(np.sum(hat11_s_mwo_err**2 / len(hat11_s_mwo)))
 hat11_s_apo_err_mean = np.sqrt(np.sum(hat11_s_apo.err**2/len(hat11_s_apo.err)**2))
 hat11_s_mwo_mean_err = np.sqrt((hat11_s_apo.value.mean() * c1.err_lower)**2 +
                                (c1.value * hat11_s_apo_err_mean)**2 +
                                c2.err_lower**2)
-
 
 rm = (hires['time'].decimalyear < 2010.7) & (hires['time'].decimalyear > 2010.6)
 rough_hires_err = np.std(hires[rm]['S-value'])
