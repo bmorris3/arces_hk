@@ -55,6 +55,13 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width,
         wavelength = wavelength[::-1]
         flux = flux[::-1]
 
+    # plt.figure()
+    # plt.plot(wavelength, flux.value)
+    # plt.show()
+
+    # Assert fluxes are not negative
+    flux.value[flux.value < 0] = 0.0
+
     if (not center_wavelength < wavelength.max() and
             not center_wavelength > wavelength.min()):
         raise ValueError("This spectral order does not contain"

@@ -51,14 +51,14 @@ for date_name, standard_name in zip(dates, standards):
 
         order_h = target_spectrum.get_order(89)
         order_k = target_spectrum.get_order(90)
-        order_h.plot(ax=ax[0, 0], label=target_spectrum.name)
-        order_k.plot(ax=ax[0, 1], label=target_spectrum.name)
+        order_h.plot(ax=ax[0, 0], label=target_spectrum.name, alpha=0.1)
+        order_k.plot(ax=ax[0, 1], label=target_spectrum.name, alpha=0.1)
 
         order_r = target_spectrum.get_order(91)
         order_v = target_spectrum.get_order(88)
 
-        order_r.plot(ax=ax[1, 0], label=target_spectrum.name)
-        order_v.plot(ax=ax[1, 1], label=target_spectrum.name)
+        order_r.plot(ax=ax[1, 0], label=target_spectrum.name, alpha=0.1)
+        order_v.plot(ax=ax[1, 1], label=target_spectrum.name, alpha=0.1)
 
         all_spectra.append(target_spectrum)
 

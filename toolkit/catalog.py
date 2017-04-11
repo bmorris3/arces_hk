@@ -17,6 +17,7 @@ k2_epic_table = None
 duncan1991 = 'III/159A'
 huber2016 = 'J/ApJS/224/2/table5'
 
+
 def get_duncan_catalog():
     """
     Parameters

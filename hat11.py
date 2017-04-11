@@ -8,9 +8,12 @@ import astropy.units as u
 from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
                      StarProps, stars_to_json)
 
+# Note that not all observations in this dir are actually from Q3
 root_dir = '/Users/bmmorris/data/Q3UW04'
-dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709', 'UT160918']
-standards = ['BD28_4211', 'BD28_4211', 'BD28_4211', 'BD28_4211', 'hr6943']
+dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709', 'UT160918',
+         'UT170411']
+standards = ['BD28_4211', 'BD28_4211', 'BD28_4211', 'BD28_4211', 'hr6943',
+             'HR5501']
 
 
 # hd222107 seems to have an anamolously low S_apo
