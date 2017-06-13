@@ -372,6 +372,8 @@ class Measurement(object):
 
         return Measurement(**new_attrs)
 
+    def __len__(self):
+        return len(self.value)
 
 class FitParameter(object):
     def __init__(self, value, err_upper=None, err_lower=None, default_err=1e10):

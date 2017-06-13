@@ -84,8 +84,8 @@ def mcmc_fit(s_apo, s_mwo, init_guess, nwalkers, n_steps_burnin=2000,
 
     while len(p0) < nwalkers:
         trial = [init_guess[0] + 0.05 * np.random.randn(),
-                  init_guess[1] + 0.01 * np.random.randn(),
-                  init_guess[2] + 0.001 * np.random.randn()]
+                 init_guess[1] + 0.01 * np.random.randn(),
+                 init_guess[2] + 0.001 * np.random.randn()]
         if np.isfinite(lnprior(trial)):
             p0.append(trial)
 

@@ -11,10 +11,17 @@ from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
 # Note that not all observations in this dir are actually from Q3
 root_dir = '/Users/bmmorris/data/Q3UW04'
 dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709', 'UT160918',
-         'UT170411']
-standards = ['BD28_4211', 'BD28_4211', 'BD28_4211', 'BD28_4211', 'hr6943',
-             'HR5501']
+         'UT170411', 'UT170612']
+standard_path = ('/Users/bmmorris/data/Q3UW04/UT160706/'
+                 'BD28_4211.0034.wfrmcpc.fits')
+# dates = ['UT170411']
+# standards = ['HR5501']
 
+from astropy.time import Time
+date_min = Time('2016-07-03')
+date_max = Time('2017-04-11')
+colormap = lambda x: plt.cm.winter(float(x - date_min.jd) /
+                                   (date_max.jd-date_min.jd))
 
 # hd222107 seems to have an anamolously low S_apo
 target_names = ['hat', 'HAT']
@@ -24,18 +31,14 @@ stars = []
 
 fig, ax = plt.subplots(2, 2, figsize=(12, 10))
 
-for date_name, standard_name in zip(dates, standards):
+for date_name in dates:
     data_dir = os.path.join(root_dir, date_name)
 
     spectra_paths = glob_spectra_paths(data_dir, target_names)
 
-    standard_spectra_paths = glob(os.path.join(data_dir,
-                                               "{0}*.wfrmcpc.fits"
-                                               .format(standard_name)))
-
     for spectrum_path in spectra_paths:
         target_spectrum = EchelleSpectrum.from_fits(spectrum_path)
-        standard_spectrum = EchelleSpectrum.from_fits(standard_spectra_paths[0])
+        standard_spectrum = EchelleSpectrum.from_fits(standard_path)
 
         only_orders = list(range(81, 91+1))
         target_spectrum.continuum_normalize(standard_spectrum,
@@ -51,14 +54,18 @@ for date_name, standard_name in zip(dates, standards):
 
         order_h = target_spectrum.get_order(89)
         order_k = target_spectrum.get_order(90)
-        order_h.plot(ax=ax[0, 0], label=target_spectrum.time.datetime.date())
-        order_k.plot(ax=ax[0, 1], label=target_spectrum.time.datetime.date())
+        date_label = target_spectrum.time.datetime.date()
+        plot_kwargs = dict(label=date_label,
+                           color=colormap(target_spectrum.time.jd),
+                           alpha=0.7)
+        order_h.plot(ax=ax[0, 0], **plot_kwargs)
+        order_k.plot(ax=ax[0, 1], **plot_kwargs)
 
         order_r = target_spectrum.get_order(91)
         order_v = target_spectrum.get_order(88)
 
-        order_r.plot(ax=ax[1, 0], label=target_spectrum.time.datetime.date())
-        order_v.plot(ax=ax[1, 1], label=target_spectrum.time.datetime.date())
+        order_r.plot(ax=ax[1, 0], **plot_kwargs)
+        order_v.plot(ax=ax[1, 1], **plot_kwargs)
 
         all_spectra.append(target_spectrum)
 
