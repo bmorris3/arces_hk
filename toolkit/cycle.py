@@ -10,7 +10,7 @@ from corner import corner
 from astropy.time import Time
 
 
-__all__ = ['fit_gp', 'plot_corner', 'plot_draws']
+__all__ = ['fit_gp', 'plot_corner', 'plot_draws', 'trap_model']
 
 
 def trap_model(p, times):
@@ -43,6 +43,7 @@ def trap_model(p, times):
 
     return f
 
+
 def model(p, x):
     return trap_model(p[:-2], x)
 
@@ -57,10 +58,10 @@ def lnlike_gp(p, x, y, yerr):
 def lnprior(p, x, y, yerr):
     high, low, period, duration_low, duration_slope, phase, lna, tau = p
     if not ((low < high < y.max()) and (5 < period < 15) and
-            (-50 < lna < 10) and (0 < phase < period) and
-            (y.min() <= low < high) and #(0 < low < 0.5) and
-            (0 < duration_low < 5) and (0 < duration_slope < 5) and
-            (0 < tau < 1)):
+            (-50 < lna < 10) and (0 <= phase < period) and
+            (y.min() <= low < high) and (0 <= low < high) and
+            (0 < duration_low < 0.9*period) and
+            (0 < duration_slope < 0.9*period) and (0 < tau < 1)):
         return -np.inf
     else:
         return 0
@@ -106,7 +107,7 @@ def fit_gp(initial, data, nwalkers=16, nsteps=1000):
                     duration_slope + 1 * np.random.randn(),
                     phase + 0.1 * np.random.randn(),
                     lna + 0.1 * np.random.randn(),#]
-                    tau + 0.1 * np.random.randn()]
+                    tau + 0.01 * np.random.randn()]
         if not np.isfinite(lnprior(p0_trial, x, y, yerr)):
             p0.append(p0_trial)
 
@@ -138,7 +139,8 @@ def plot_corner(samples):
 
 
 def plot_draws(samples, x, y, yerr, n_draws=150):
-    t = np.concatenate((x, np.linspace(x.min(), x.max()+x.ptp(), 300)))
+    t = np.concatenate((x, np.linspace(x.min()-x.ptp()/2,
+                                       x.max()+x.ptp()/2, 300)))
     t = np.sort(t)
 
     fig, ax = plt.subplots()
