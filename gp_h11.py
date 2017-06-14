@@ -20,12 +20,13 @@ sort = np.argsort(x)
 
 x = np.array(Time(x, format='jd').decimalyear)[sort]
 y = np.array(y)[sort]
-yerr = np.array(yerr)[sort]
+yerr = np.ones_like(x) * np.median(yerr) #np.array(yerr)[sort]
 
-initp = [0.59, 0.45, 11.0, 0.14, 2.85, 7.62, -7.28, 0.0002]
+#initp = [0.59, 0.45, 11.0, 0.14, 2.85, 7.62, -7.28, 0.0002]
+initp = [0.6, -1, -1, 11]
 
 args = (x, y, yerr)
-sampler = fit_gp(initp, args, nsteps=1000)
+sampler = fit_gp(initp, args, nsteps=500)
 samples = sampler.flatchain
 
 fig, ax = plot_corner(samples)

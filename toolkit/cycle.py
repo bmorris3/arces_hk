@@ -2,12 +2,11 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import george
-from george.kernels import Matern32Kernel
+from george.kernels import Matern32Kernel, CosineKernel
 import numpy as np
 import matplotlib.pyplot as plt
 import emcee
 from corner import corner
-from astropy.time import Time
 
 
 __all__ = ['fit_gp', 'plot_corner', 'plot_draws', 'trap_model']
@@ -45,23 +44,22 @@ def trap_model(p, times):
 
 
 def model(p, x):
-    return trap_model(p[:-2], x)
-
+#    return trap_model(p[:-2], x)
+    c, lna, lntau, period = p
+    return np.zeros_like(x) + c
 
 def lnlike_gp(p, x, y, yerr):
-    high, low, period, duration_low, duration_slope, phase, lna, tau = p
-    gp = george.GP(np.exp(lna) * Matern32Kernel(tau))
+    c, lna, lntau, period = p
+    gp = george.GP(np.exp(lna) * Matern32Kernel(np.exp(lntau)) +
+                   CosineKernel(period))
     gp.compute(x, yerr)
     return gp.lnlikelihood(y - model(p, x))
 
 
 def lnprior(p, x, y, yerr):
-    high, low, period, duration_low, duration_slope, phase, lna, tau = p
-    if not ((low < high < y.max()) and (5 < period < 15) and
-            (-50 < lna < 10) and (0 <= phase < period) and
-            (y.min() <= low < high) and (0 <= low < high) and
-            (0 < duration_low < 0.9*period) and
-            (0 < duration_slope < 0.9*period) and (0 < tau < 1)):
+    c, lna, lntau, period = p
+    if not ((-20 < lna < 10) and (1 < period < 50) and (-10 < lntau < 10)
+            and (0 < c)):
         return -np.inf
     else:
         return 0
@@ -96,19 +94,16 @@ def fit_gp(initial, data, nwalkers=16, nsteps=1000):
 
     x, y, yerr = data
 
-    high, low, period, duration_low, duration_slope, phase, lna, tau = initial
+    c, lna, lntau, period = initial
 
     while len(p0) < nwalkers:
 
-        p0_trial = [high + 0.05 * np.random.randn(),
-                    low + 0.05 * np.random.randn(),
-                    period + 1 * np.random.randn(),
-                    duration_low + 1 * np.random.randn(),
-                    duration_slope + 1 * np.random.randn(),
-                    phase + 0.1 * np.random.randn(),
-                    lna + 0.1 * np.random.randn(),#]
-                    tau + 0.01 * np.random.randn()]
-        if not np.isfinite(lnprior(p0_trial, x, y, yerr)):
+        p0_trial = [c + 0.01 * np.random.randn(),
+                    lna + 0.1 * np.random.randn(),
+                    lntau + 1 * np.random.randn(),
+                    period + 1 * np.random.randn()]
+
+        if np.isfinite(lnprior(p0_trial, x, y, yerr)):
             p0.append(p0_trial)
 
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob_gp, args=data,
@@ -133,8 +128,7 @@ def fit_gp(initial, data, nwalkers=16, nsteps=1000):
 def plot_corner(samples):
     fig, ax = plt.subplots(samples.shape[1], samples.shape[1], figsize=(8, 8))
     corner(samples, fig=fig,
-           labels=['high', 'low', 'period', 'duration_low',
-                   'duration_slope', 'phase', 'lna', 'tau'])
+           labels=['c', 'lna', 'tau', 'period'])
     return fig, ax
 
 
@@ -145,9 +139,10 @@ def plot_draws(samples, x, y, yerr, n_draws=150):
 
     fig, ax = plt.subplots()
     for s in samples[np.random.randint(len(samples), size=n_draws)]:
-        high, low, period, duration_low, duration_slope, phase, lna, tau  = s
+        c, lna, lntau, period = s
 
-        kernel = np.exp(lna) * Matern32Kernel(tau)
+        kernel = (np.exp(lna) * Matern32Kernel(np.exp(lntau)) +
+                  CosineKernel(period))
         gp = george.GP(kernel)
         gp.compute(x, yerr)
         m = gp.sample_conditional(y - model(s, x), t) + model(s, t)
@@ -155,5 +150,5 @@ def plot_draws(samples, x, y, yerr, n_draws=150):
     ax.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0,
                 zorder=10)
     ax.set_ylabel(r"$S$-index")
-    ax.set_title("Gaussian process model")
+    ax.set_title("GP")
     return fig, ax
