@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import emcee
 from corner import corner
-from astropy.time import Time
 
 
 __all__ = ['fit_gp', 'plot_corner', 'plot_draws', 'trap_model']
@@ -52,11 +51,14 @@ def lnlike_gp(p, x, y, yerr):
     high, low, period, duration_low, duration_slope, phase, var = p
     inv_sig2 = 1/(yerr**2 + var)
     return -0.5 * np.sum((y - model(p, x))**2 * inv_sig2 - np.log(inv_sig2))
-
+    # high, low, period, duration_low, duration_slope, phase, var = p
+    # gp = george.GP(Matern32Kernel(np.exp(lntau)))
+    # gp.compute(x, np.sqrt(yerr**2 + var))
+    # return gp.lnlikelihood(y - model(p, x))
 
 def lnprior(p, x, y, yerr):
     high, low, period, duration_low, duration_slope, phase, var = p
-    if not ((low < high < y.max()) and (5 < period < 25) and
+    if not ((low < high < y.max()) and (1 < period < 50) and
             (0 <= phase < period) and
             (y.min() <= low < high) and (0 <= low < high) and
             (0 < duration_low < 0.9*period) and (0 < var) and
@@ -136,22 +138,41 @@ def plot_corner(samples):
     return fig, ax
 
 
+# def plot_draws(samples, x, y, yerr, n_draws=150):
+#     t = np.concatenate((x, np.linspace(x.min()-x.ptp()/2,
+#                                        x.max()+x.ptp()/2, 300)))
+#     t = np.sort(t)
+#
+#     fig, ax = plt.subplots()
+#     for s in samples[np.random.randint(len(samples), size=n_draws)]:
+#         high, low, period, duration_low, duration_slope, phase, var, lntau = s
+#
+#         kernel = Matern32Kernel(np.exp(lntau))
+#         gp = george.GP(kernel)
+#         gp.compute(x, np.sqrt(yerr**2 + var))
+#         m = gp.sample_conditional(y - model(s, x), t) + model(s, t)
+#         ax.plot(t, m, '-', color="#4682b4", alpha=0.05)
+#     ax.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0,
+#                 zorder=10)
+#     ax.set_ylabel(r"$S$-index")
+#     ax.set_title("Gaussian process model")
+#     return fig, ax
+
 def plot_draws(samples, x, y, yerr, n_draws=150):
+
+    ## Plot samples
     t = np.concatenate((x, np.linspace(x.min()-x.ptp()/2,
                                        x.max()+x.ptp()/2, 300)))
     t = np.sort(t)
 
+    n_draws = 300
     fig, ax = plt.subplots()
     for s in samples[np.random.randint(len(samples), size=n_draws)]:
-        high, low, period, duration_low, duration_slope, phase, var  = s
-
-        kernel = Matern32Kernel(tau)
-        gp = george.GP(kernel)
-        gp.compute(x, np.sqrt(yerr**2 + var))
-        m = gp.sample_conditional(y - model(s, x), t) + model(s, t)
+        var = s[-1]
+        m = model(s, t)
         ax.plot(t, m, '-', color="#4682b4", alpha=0.05)
-    ax.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0,
-                zorder=10)
+    ax.errorbar(x, y, yerr=np.sqrt(yerr**2 + var), fmt=".k", capsize=0,
+                zorder=-10)
     ax.set_ylabel(r"$S$-index")
     ax.set_title("Gaussian process model")
     return fig, ax

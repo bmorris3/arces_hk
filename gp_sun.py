@@ -36,7 +36,7 @@ x = x[sort]
 y = np.array(y)[sort]
 yerr = np.array(yerr)[sort]
 
-initp = [0.168, 0.156, 11.2, 2, 2, 1, 0.1]
+initp = [0.168, 0.156, 11.2, 2, 2, 1, 0.001]
 
 # from scipy.optimize import fmin
 #
@@ -52,7 +52,7 @@ initp = [0.168, 0.156, 11.2, 2, 2, 1, 0.1]
 # plt.show()
 
 args = (x, y, yerr)
-sampler = fit_gp(initp, args, nsteps=500)
+sampler = fit_gp(initp, args, nsteps=5000)
 samples = sampler.flatchain
 
 fig, ax = plot_corner(samples)

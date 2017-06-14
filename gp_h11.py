@@ -25,28 +25,12 @@ yerr = np.array(yerr)[sort]
 initp = [0.59, 0.45, 11.0, 1, 1, 1, 0.01]
 
 args = (x, y, yerr)
-sampler = fit_gp(initp, args, nsteps=1000)
+sampler = fit_gp(initp, args, nsteps=5000)
 samples = sampler.flatchain
 
 fig, ax = plot_corner(samples)
 fig.savefig('plots/corner_hat11.png', bbox_inches='tight', dpi=200)
 
-## Plot samples
-t = np.concatenate((x, np.linspace(x.min()-x.ptp()/2,
-                                   x.max()+x.ptp()/2, 300)))
-t = np.sort(t)
-
-n_draws = 100
-fig, ax = plt.subplots()
-from toolkit.cycle import model
-for s in samples[np.random.randint(len(samples), size=n_draws)]:
-#    high, low, period, duration_low, duration_slope, phase, var  = s
-    m = model(s, t)
-    ax.plot(t, m, '-', color="#4682b4", alpha=0.05)
-ax.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0,
-            zorder=10)
-ax.set_ylabel(r"$S$-index")
-ax.set_title("Gaussian process model")
-#fig, ax = plot_draws(samples, x, y, yerr)
-#fig.savefig('plots/model_hat11.png', bbox_inches='tight', dpi=200)
+fig, ax = plot_draws(samples, x, y, yerr)
+fig.savefig('plots/model_hat11.png', bbox_inches='tight', dpi=200)
 plt.show()
