@@ -36,7 +36,7 @@ x = x[sort]
 y = np.array(y)[sort]
 yerr = np.array(yerr)[sort]
 
-#initp = [0.168, 0.156, 11.2, 2, 2, 1, -10, 0.1]
+initp = [0.168, 0.156, 11.2, 2, 2, 1, 0.1]
 
 # from scipy.optimize import fmin
 #
@@ -50,8 +50,6 @@ yerr = np.array(yerr)[sort]
 # print(x.mean(), model_times.mean())
 # plt.errorbar(x, y, yerr=yerr, fmt='o')
 # plt.show()
-
-initp = [0.168, -6, 11, 0.01]
 
 args = (x, y, yerr)
 sampler = fit_gp(initp, args, nsteps=500)
