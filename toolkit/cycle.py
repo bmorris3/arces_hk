@@ -10,7 +10,7 @@ from corner import corner
 from astropy.time import Time
 
 
-__all__ = ['fit_gp']
+__all__ = ['fit_gp', 'plot_corner', 'plot_draws']
 
 
 def trap_model(p, times):
@@ -57,8 +57,8 @@ def lnlike_gp(p, x, y, yerr):
 def lnprior(p, x, y, yerr):
     high, low, period, duration_low, duration_slope, phase, lna, tau = p
     if not ((low < high < y.max()) and (5 < period < 15) and
-            (-50 < lna < 10) and (0 < low < 0.5) and (0 < phase < period) and
-            (y.min() <= low < high) and
+            (-50 < lna < 10) and (0 < phase < period) and
+            (y.min() <= low < high) and #(0 < low < 0.5) and
             (0 < duration_low < 5) and (0 < duration_slope < 5) and
             (0 < tau < 1)):
         return -np.inf
@@ -73,7 +73,7 @@ def lnprob_gp(p, x, y, yerr):
     return lp + lnlike_gp(p, x, y, yerr)
 
 
-def fit_gp(initial, data, nwalkers=16):
+def fit_gp(initial, data, nwalkers=16, nsteps=1000):
     """
 
     Parameters
@@ -114,26 +114,28 @@ def fit_gp(initial, data, nwalkers=16):
                                     threads=3)
 
     print("Running burn-in")
-    p0, lnp, _ = sampler.run_mcmc(p0, 1000)
+    p0, lnp, _ = sampler.run_mcmc(p0, nsteps)
     sampler.reset()
 
     print("Running second burn-in")
     p = p0[np.argmax(lnp)]
     p0 = [p + 1e-8 * np.random.randn(ndim) for i in range(nwalkers)]
-    p0, _, _ = sampler.run_mcmc(p0, 1000)
+    p0, _, _ = sampler.run_mcmc(p0, nsteps)
     sampler.reset()
 
     print("Running production")
-    p0, _, _ = sampler.run_mcmc(p0, 1000)
+    p0, _, _ = sampler.run_mcmc(p0, nsteps)
 
     return sampler
 
 
-def corner(samples):
+def plot_corner(samples):
     fig, ax = plt.subplots(samples.shape[1], samples.shape[1], figsize=(8, 8))
-    return corner(samples, fig=fig,
-                  labels=['high', 'low', 'period', 'duration_low',
-                          'duration_slope', 'phase', 'lna', 'tau'])
+    corner(samples, fig=fig,
+           labels=['high', 'low', 'period', 'duration_low',
+                   'duration_slope', 'phase', 'lna', 'tau'])
+    return fig, ax
+
 
 def plot_draws(samples, x, y, yerr, n_draws=150):
     t = np.concatenate((x, np.linspace(x.min(), x.max()+x.ptp(), 300)))
