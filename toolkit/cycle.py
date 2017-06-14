@@ -2,7 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import george
-from george.kernels import Matern32Kernel, CosineKernel
+from george.kernels import Matern32Kernel, CosineKernel, ExpSquaredKernel
 import numpy as np
 import matplotlib.pyplot as plt
 import emcee
@@ -45,21 +45,20 @@ def trap_model(p, times):
 
 def model(p, x):
 #    return trap_model(p[:-2], x)
-    c, lna, lntau, period = p
+    c, lntau, period, var = p
     return np.zeros_like(x) + c
 
+
 def lnlike_gp(p, x, y, yerr):
-    c, lna, lntau, period = p
-    gp = george.GP(np.exp(lna) * Matern32Kernel(np.exp(lntau)) +
-                   CosineKernel(period))
-    gp.compute(x, yerr)
+    c, lntau, period, var = p
+    gp = george.GP(Matern32Kernel(np.exp(lntau)) * CosineKernel(period))
+    gp.compute(x, np.sqrt(yerr**2 + var))
     return gp.lnlikelihood(y - model(p, x))
 
 
 def lnprior(p, x, y, yerr):
-    c, lna, lntau, period = p
-    if not ((-20 < lna < 10) and (1 < period < 50) and (-10 < lntau < 10)
-            and (0 < c)):
+    c, lntau, period, var = p
+    if not ((5 < period < 15) and (0 < lntau < 10) and (0 < c) and (0 <= var)):
         return -np.inf
     else:
         return 0
@@ -94,14 +93,14 @@ def fit_gp(initial, data, nwalkers=16, nsteps=1000):
 
     x, y, yerr = data
 
-    c, lna, lntau, period = initial
+    c, lntau, period, var = initial
 
     while len(p0) < nwalkers:
 
         p0_trial = [c + 0.01 * np.random.randn(),
-                    lna + 0.1 * np.random.randn(),
                     lntau + 1 * np.random.randn(),
-                    period + 1 * np.random.randn()]
+                    period + 1 * np.random.randn(),
+                    var + 0.1 * np.random.randn()]
 
         if np.isfinite(lnprior(p0_trial, x, y, yerr)):
             p0.append(p0_trial)
@@ -128,7 +127,7 @@ def fit_gp(initial, data, nwalkers=16, nsteps=1000):
 def plot_corner(samples):
     fig, ax = plt.subplots(samples.shape[1], samples.shape[1], figsize=(8, 8))
     corner(samples, fig=fig,
-           labels=['c', 'lna', 'tau', 'period'])
+           labels=['c', 'lntau', 'period', 'var'])
     return fig, ax
 
 
@@ -139,12 +138,12 @@ def plot_draws(samples, x, y, yerr, n_draws=150):
 
     fig, ax = plt.subplots()
     for s in samples[np.random.randint(len(samples), size=n_draws)]:
-        c, lna, lntau, period = s
+        c, lntau, period, var = s
 
-        kernel = (np.exp(lna) * Matern32Kernel(np.exp(lntau)) +
+        kernel = (Matern32Kernel(np.exp(lntau)) +
                   CosineKernel(period))
         gp = george.GP(kernel)
-        gp.compute(x, yerr)
+        gp.compute(x, np.sqrt(yerr**2 + var))
         m = gp.sample_conditional(y - model(s, x), t) + model(s, t)
         ax.plot(t, m, '-', color="#4682b4", alpha=0.05)
     ax.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0,

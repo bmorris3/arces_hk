@@ -23,7 +23,7 @@ y = np.array(y)[sort]
 yerr = np.ones_like(x) * np.median(yerr) #np.array(yerr)[sort]
 
 #initp = [0.59, 0.45, 11.0, 0.14, 2.85, 7.62, -7.28, 0.0002]
-initp = [0.6, -1, -1, 11]
+initp = [0.6, 1, 11, 0.01]
 
 args = (x, y, yerr)
 sampler = fit_gp(initp, args, nsteps=500)

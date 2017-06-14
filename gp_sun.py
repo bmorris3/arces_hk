@@ -51,7 +51,7 @@ yerr = np.array(yerr)[sort]
 # plt.errorbar(x, y, yerr=yerr, fmt='o')
 # plt.show()
 
-initp = [0.168, -1, -6, 11]
+initp = [0.168, -6, 11, 0.01]
 
 args = (x, y, yerr)
 sampler = fit_gp(initp, args, nsteps=500)
