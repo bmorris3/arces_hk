@@ -65,20 +65,25 @@ stars_to_json(hat11_keck_calibrated, 'hat11_keck_calibrated.json')
 fig, ax = plt.subplots()
 ax.axvspan(2009.4, 2013.4, color='k', alpha=0.1, label='Kepler')
 
+ax.errorbar(hat11_s_apo.time.decimalyear, hat11_s_mwo.value, hat11_s_mwo.err/2,
+            fmt='.', color='r', capsize=0,
+            ecolor='gray', label='ARC 3.5m/ARCES')
+
 ax.errorbar(hires['time'].decimalyear, hires['S-value'], yerr=rough_hires_err,
             color='k', fmt='.', label='Keck/HIRES', capsize=0,
             ecolor='gray')
-ax.errorbar(hat11_s_apo.time.decimalyear, hat11_s_mwo.value, hat11_s_mwo.err,
-            fmt='.', color='gray', capsize=0, label='ARC 3.5m/ARCES')
+
 # ax.errorbar(hat11_s_apo.time.decimalyear.mean(), hat11_s_mwo_mean,
 #             hat11_s_mwo_mean_err, fmt='s', color='r', capsize=0, markersize=10,
 #             elinewidth=4, label='ARC 3.5m/ARCES (mean)')
-ax.errorbar(hat11_s_apo.time.decimalyear[last_week_inds].mean(),
-            hat11_s_mwo_mean, hat11_s_mwo_mean_err, fmt='s', color='r',
-            capsize=0, markersize=10, elinewidth=4,
-            label='ARC 3.5m/ARCES (mean)')
+# ax.errorbar(hat11_s_apo.time.decimalyear[last_week_inds].mean(),
+#             hat11_s_mwo_mean, hat11_s_mwo_mean_err, fmt='s', color='r',
+#             capsize=0, markersize=10, elinewidth=4,
+#             label='ARC 3.5m/ARCES (mean)')
+ax.set_xticks(range(2008, 2020))
 ax.set_xlabel('Date', **props)
 ax.set_ylabel('$S$-index', **props)
+ax.grid(ls=':', color='gray')
 ax.set_title('CaII H & K', **props)
 ax.legend(loc='lower left', numpoints=1)
 fig.savefig('plots/s-index_hat11.png', bbox_inches='tight', dpi=200)

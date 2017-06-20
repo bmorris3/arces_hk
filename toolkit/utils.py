@@ -60,37 +60,101 @@ def glob_spectra_paths(data_dir, target_names):
     return all_spectra_paths
 
 
-def construct_standard_star_table(star_list, write_to=results_dir):
+# def construct_standard_star_table(stars, write_to=results_dir):
+#
+#     names = []
+#     sp_types = []
+#     s_mwo = []
+#     s_apo = []
+#
+#     for star in stars:
+#         names.append(star.name.upper())
+#         customSimbad = Simbad()
+#         customSimbad.add_votable_fields('sptype')
+#         sp_type = customSimbad.query_object(star.name)['SP_TYPE'][0]
+#         sp_types.append(sp_type)
+#
+#         s_mwo.append(star.s_mwo.to_latex())
+#         s_apo.append(star.s_apo.to_latex())
+#
+#     standard_table = Table([names, sp_types, s_mwo, s_apo],
+#                            names=['Star', 'Sp.~Type', '$S_{MWO}$', '$S_{APO}$'])
+#
+#     standard_table.sort(keys='$S_{MWO}$')
+#
+#     latexdict = dict(col_align='l l c c', preamble=r'\begin{center}',
+#                      tablefoot=r'\end{center}',
+#                      caption=r'Stars observed to calibrate the $S$-index '
+#                              r'(see Section~\ref{sec:def_s_index}). \label{tab:cals}',
+#                      data_start=r'\hline')
+#
+#     # output_path,
+#     ascii.write(standard_table, format='latex', latexdict=latexdict,
+#                 output='cal_stars.tex')
+#
 
-    names = []
+def combine_measurements(measurement_list):
+    mean = np.mean([m.value for m in measurement_list])
+    err = np.sqrt(np.sum(np.array([m.err for m in measurement_list])**2))
+    return Measurement(value=mean, err=err, meta=len(measurement_list))
+
+
+def construct_standard_star_table(stars, write_to=results_dir):
+
+    mwo_dict = dict()
+    apo_dict = dict()
+    for star in stars:
+        mwo_dict[star.name.upper()] = []
+        apo_dict[star.name.upper()] = []
+
+    names = list(mwo_dict.keys())
+
+    for star_name in names:
+        all_obs_this_star = [star for star in stars if star.name.upper() == star_name]
+        mwo_dict[star_name] = combine_measurements([s.s_mwo for s in all_obs_this_star])
+        apo_dict[star_name] = combine_measurements([s.s_apo for s in all_obs_this_star])
+
     sp_types = []
     s_mwo = []
-    sigma_mwo = []
+    s_apo = []
+    n_obs = []
 
-    for star in star_list:
-        names.append(star.upper())
+    for star in names:
+        s_mwo.append(mwo_dict[star].to_latex())
+        s_apo.append(apo_dict[star].to_latex())
+
+        n_obs.append(apo_dict[star].meta)
+
         customSimbad = Simbad()
         customSimbad.add_votable_fields('sptype')
         sp_type = customSimbad.query_object(star)['SP_TYPE'][0]
         sp_types.append(sp_type)
 
-        star_mwo_tbl = query_catalog_for_object(star)
-        s_mwo.append(star_mwo_tbl['Smean'])
-        sigma_mwo.append(star_mwo_tbl['e_Smean'])
+    # for star in stars:
+    #     names.append(star.name.upper())
+    #     customSimbad = Simbad()
+    #     customSimbad.add_votable_fields('sptype')
+    #     sp_type = customSimbad.query_object(star.name)['SP_TYPE'][0]
+    #     sp_types.append(sp_type)
+    #
+    #     s_mwo.append(star.s_mwo.to_latex())
+    #     s_apo.append(star.s_apo.to_latex())
 
-    standard_table = Table([names, sp_types, s_mwo, sigma_mwo],
-                           names=['Star', 'Sp.~Type', '$S_{MWO}$', '$\sigma_{MWO}$'])
+    standard_table = Table([names, sp_types, s_mwo, s_apo, n_obs],
+                           names=['Star', 'Sp.~Type', '$S_{MWO}$', '$S_{APO}$', '$N$'])
 
-    latexdict = dict(col_align='l l c c', preamble=r'\begin{center}',
+    standard_table.sort(keys='$S_{MWO}$')
+
+    latexdict = dict(col_align='l l c c c', preamble=r'\begin{center}',
                      tablefoot=r'\end{center}',
                      caption=r'Stars observed to calibrate the $S$-index '
                              r'(see Section~\ref{sec:def_s_index}). \label{tab:cals}',
                      data_start=r'\hline')
 
-    output_path = os.path.join(results_dir, 'cal_stars.tex')
-
     # output_path,
-    ascii.write(standard_table, format='latex', latexdict=latexdict)
+    ascii.write(standard_table, format='latex', latexdict=latexdict,
+                output='cal_stars.tex')
+
 
 
 def floats_to_strings(d):

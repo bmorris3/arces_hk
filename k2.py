@@ -12,30 +12,28 @@ from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
                      StarProps, stars_to_json)
 
 root_dir = '/Users/bmmorris/data/Q1UW09/'
-dates = ['UT170321']
-standards = ['HR5501']
+dates = ['UT170321', 'UT160620']
 
-# Night: UT170321
+standard_path = ('/Users/bmmorris/data/Q3UW04/UT160706/'
+                 'BD28_4211.0034.wfrmcpc.fits')
+
+# Night: UT170321, UT170620
 target_names = ['EPIC204529573', 'EPIC212443457', 'EPIC212779596',
-                'EPIC212844260']
+                'EPIC212844260', 'EPIC204529573']
 
 all_spectra = []
 stars = []
 
 fig, ax = plt.subplots(2, 2, figsize=(12, 10))
 
-for date_name, standard_name in zip(dates, standards):
+for date_name in dates:
     data_dir = os.path.join(root_dir, date_name)
 
     spectra_paths = glob_spectra_paths(data_dir, target_names)
 
-    standard_spectra_paths = glob(os.path.join(data_dir,
-                                               "{0}*.wfrmcpc.fits"
-                                               .format(standard_name)))
-
     for spectrum_path in spectra_paths:
         target_spectrum = EchelleSpectrum.from_fits(spectrum_path)
-        standard_spectrum = EchelleSpectrum.from_fits(standard_spectra_paths[0])
+        standard_spectrum = EchelleSpectrum.from_fits(standard_path)
 
         only_orders = list(range(81, 91+1))
         target_spectrum.continuum_normalize(standard_spectrum,
@@ -51,14 +49,14 @@ for date_name, standard_name in zip(dates, standards):
 
         order_h = target_spectrum.get_order(89)
         order_k = target_spectrum.get_order(90)
-        order_h.plot(ax=ax[0, 0], label=target_spectrum.name, alpha=0.1)
-        order_k.plot(ax=ax[0, 1], label=target_spectrum.name, alpha=0.1)
+        order_h.plot(ax=ax[0, 0], label=target_spectrum.name)
+        order_k.plot(ax=ax[0, 1], label=target_spectrum.name)
 
         order_r = target_spectrum.get_order(91)
         order_v = target_spectrum.get_order(88)
 
-        order_r.plot(ax=ax[1, 0], label=target_spectrum.name, alpha=0.1)
-        order_v.plot(ax=ax[1, 1], label=target_spectrum.name, alpha=0.1)
+        order_r.plot(ax=ax[1, 0], label=target_spectrum.name)
+        order_v.plot(ax=ax[1, 1], label=target_spectrum.name)
 
         all_spectra.append(target_spectrum)
 
@@ -66,7 +64,6 @@ for date_name, standard_name in zip(dates, standards):
 
         star = StarProps(name=target_spectrum.name, s_apo=s_apo,
                          time=target_spectrum.time)
-        #star.get_s_mwo()
         stars.append(star)
 
 stars_to_json(stars, output_path='k2_stars.json')
@@ -91,7 +88,7 @@ for axis in ax[0, :]:
 
 fig.savefig('plots/k2_spectra.png', bbox_inches='tight', dpi=200)
 plt.show()
-#
+
 # from toolkit.utils import construct_standard_star_table
 # construct_standard_star_table(target_names)
 #

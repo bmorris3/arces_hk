@@ -9,7 +9,7 @@ import numpy as np
 import astropy.units as u
 
 from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
-                     StarProps, Measurement, stars_to_json)
+                     StarProps, Measurement, stars_to_json, FitParameter)
 
 root_dir = '/Users/bmmorris/data/'
 dates = ['UT160918', 'UT161202', 'Q1UW09/UT170317']
@@ -30,6 +30,13 @@ target_names += ['HD41593', 'HD45088', 'HD68017', 'HD34411', 'HD39587']
 target_names += ['HD110833', 'HD266611', 'HD47752', 'HD47752', 'HD79555',
                  'HD82106', 'HD87884']# , 'HD98230']
 
+# Night: UT170615
+target_names += ['HD113827', 'HD122120', 'HD127506', 'HD129333', 'HD134319',
+                 'HD88230']
+
+# Night: UT170620
+target_names += ['HD120476', 'HD151288', 'HD149957', 'HD148467', 'GJ702B',
+                 'HD175742', 'HD200560']
 all_spectra = []
 stars = []
 
@@ -102,9 +109,6 @@ for axis in ax[0, :]:
 
 fig.savefig('plots/spectra.png', bbox_inches='tight', dpi=200)
 plt.show()
-
-from toolkit.utils import construct_standard_star_table
-construct_standard_star_table(target_names)
 
 s_mwo = Measurement([s.s_mwo.value for s in stars],
                     err=[s.s_mwo.err for s in stars])

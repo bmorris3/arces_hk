@@ -316,7 +316,8 @@ class StarProps(object):
 
 
 class Measurement(object):
-    def __init__(self, value=None, err=None, time=None, default_err=1e10):
+    def __init__(self, value=None, err=None, time=None, default_err=1e10,
+                 meta=None):
 
         if hasattr(value, '__len__'):
             self.value = np.asarray(value)
@@ -342,6 +343,8 @@ class Measurement(object):
                 self.time = Time(time)
         else:
             self.time = None
+
+        self.meta = meta
 
     @classmethod
     def from_min_max(cls, min, max):
@@ -374,6 +377,19 @@ class Measurement(object):
 
     def __len__(self):
         return len(self.value)
+
+    def to_latex(self):
+        return "${0:.3f} \pm {1}$".format(self.value, error_to_latex(self.err))
+
+
+def error_to_latex(error):
+    str_err = "{0:.2g}".format(error)
+    if 'e' in str_err:
+        # split_str = str_err.split('e')
+        # str_err = split_str[0] + r'\times 10^{{{0}}}'.format(int(split_str[1]))
+        str_err = "{0:.6f}".format(error)
+    return str_err
+
 
 class FitParameter(object):
     def __init__(self, value, err_upper=None, err_lower=None, default_err=1e10):
