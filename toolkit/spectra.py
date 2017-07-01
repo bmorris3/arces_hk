@@ -29,7 +29,7 @@ class Spectrum1D(Spec1D):
 
     Adds a plot method.
     """
-    def plot(self, ax=None, normed=True, **kwargs):
+    def plot(self, ax=None, normed=True, flux_offset=0, **kwargs):
         """
         Plot the spectrum.
 
@@ -44,7 +44,6 @@ class Spectrum1D(Spec1D):
         if ax is None:
             ax = plt.gca()
 
-
         flux_80th_percentile = np.percentile(self.masked_flux, 80)
 
         if normed:
@@ -52,7 +51,7 @@ class Spectrum1D(Spec1D):
         else:
             flux = self.masked_flux
 
-        ax.plot(self.masked_wavelength, flux, **kwargs)
+        ax.plot(self.masked_wavelength, flux + flux_offset, **kwargs)
         ax.set_xlim([self.masked_wavelength.value.min(),
                      self.masked_wavelength.value.max()])
 
@@ -273,7 +272,7 @@ class EchelleSpectrum(object):
         for spectrum in self.spectrum_list:
             spectrum.wavelength += wavelength_offset
 
-    def rv_wavelength_shift(self, spectral_order, plot=False):
+    def rv_wavelength_shift(self, spectral_order, T_eff=None, plot=False):
         """
         Solve for the radial velocity wavelength shift.
 
@@ -285,7 +284,8 @@ class EchelleSpectrum(object):
         order = self.spectrum_list[spectral_order]
 
         if self.model_spectrum is None:
-            T_eff = query_for_T_eff(self.name)
+            if T_eff is None:
+                T_eff = query_for_T_eff(self.name)
             self.model_spectrum = get_phoenix_model_spectrum(T_eff)
 
         model_slice = slice_spectrum(self.model_spectrum,

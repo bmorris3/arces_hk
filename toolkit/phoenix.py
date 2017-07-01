@@ -56,12 +56,12 @@ def get_phoenix_model_spectrum(T_eff, log_g=4.5, cache=True):
         Model spectrum
     """
     url = get_url(T_eff=T_eff, log_g=log_g)
-    fluxes_path = download_file(url, cache=cache)
+    fluxes_path = download_file(url, cache=cache, timeout=30)
     fluxes = fits.getdata(fluxes_path)
 
     wavelength_url = ('ftp://phoenix.astro.physik.uni-goettingen.de/v2.0/HiResFITS/'
                       'WAVE_PHOENIX-ACES-AGSS-COND-2011.fits')
-    wavelength_path = download_file(wavelength_url, cache=cache)
+    wavelength_path = download_file(wavelength_url, cache=cache, timeout=30)
     wavelengths_vacuum = fits.getdata(wavelength_path)
 
     # Wavelengths are provided at vacuum wavelengths. For ground-based

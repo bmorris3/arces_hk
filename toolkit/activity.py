@@ -16,8 +16,8 @@ __all__ = ['integrate_spectrum_trapz', 'true_h_centroid', 'true_k_centroid',
            'uncalibrated_s_index', 'StarProps', 'Measurement',
            'FitParameter']
 
-true_h_centroid = 3968.47 * u.Angstrom
-true_k_centroid = 3933.66 * u.Angstrom
+true_h_centroid = 3968.4673 * u.Angstrom
+true_k_centroid = 3933.6614 * u.Angstrom
 
 
 def integrate_spectrum_trapz(spectrum, center_wavelength, width,
@@ -135,7 +135,7 @@ def triangle_weighting(x, x0, fwhm=1.09*u.Angstrom):
     return weights
 
 
-def uncalibrated_s_index(spectrum):
+def uncalibrated_s_index(spectrum, plots=False):
     """
     Calculate the uncalibrated S-index from an Echelle spectrum.
 
@@ -162,11 +162,11 @@ def uncalibrated_s_index(spectrum):
     rv_width = 20 * u.Angstrom
 
     h = integrate_spectrum_trapz(order_h, true_h_centroid, hk_width,
-                                        weighting=True)
+                                        weighting=True, plot=plots)
     k = integrate_spectrum_trapz(order_k, true_k_centroid, hk_width,
-                                        weighting=True)
-    r = integrate_spectrum_trapz(order_r, r_centroid, rv_width)
-    v = integrate_spectrum_trapz(order_v, v_centroid, rv_width)
+                                        weighting=True, plot=plots)
+    r = integrate_spectrum_trapz(order_r, r_centroid, rv_width, plot=plots)
+    v = integrate_spectrum_trapz(order_v, v_centroid, rv_width, plot=plots)
 
     s_ind = SIndex(h=h, k=k, r=r, v=v, time=spectrum.time)
     return s_ind

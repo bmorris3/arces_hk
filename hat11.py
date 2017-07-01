@@ -11,7 +11,7 @@ from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
 # Note that not all observations in this dir are actually from Q3
 root_dir = '/Users/bmmorris/data/Q3UW04'
 dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709', 'UT160918',
-         'UT170411', 'UT170612']
+         'UT170411', 'UT170612', 'UT170620']
 standard_path = ('/Users/bmmorris/data/Q3UW04/UT160706/'
                  'BD28_4211.0034.wfrmcpc.fits')
 # dates = ['UT170411']
@@ -99,3 +99,22 @@ fig.savefig('plots/spectra_hat11.png', bbox_inches='tight', dpi=200)
 
 plt.show()
 
+fig, ax = plt.subplots()
+times = []
+for s in all_spectra:
+    times.append(Time(s.header['DATE-OBS'], format='isot').decimalyear)
+
+times = np.array(times)
+
+for i, s in enumerate(all_spectra):
+    order = s.get_order(89).plot(color='r' if times[i] < 2017 else 'k',
+                                 alpha=1, ax=ax, lw=1)
+
+annotate_kwargs = dict(ha='left', fontsize=20)
+ax.annotate("2016", xy=(3967.5, 0.85), color='r', **annotate_kwargs)
+ax.annotate("2017", xy=(3967.5, 0.75), color='k', **annotate_kwargs)
+ax.set_xlim([3967, 3970])
+ax.set_ylim([0, 1.1])
+ax.set(xlabel='Wavelength [Angstrom]', ylabel='Flux')
+fig.savefig('plots/close_up_h.png', bbox_inches='tight', dpi=200)
+plt.show()

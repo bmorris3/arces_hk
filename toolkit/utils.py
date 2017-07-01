@@ -130,6 +130,11 @@ def construct_standard_star_table(stars, write_to=results_dir):
         sp_type = customSimbad.query_object(star)['SP_TYPE'][0]
         sp_types.append(sp_type)
 
+    print('N_stars = {0}'.format(len(names)))
+    print('N_spectra = {0}'.format(sum(n_obs)))
+    print('N_sptype=G = {0}'.format(len([spt for spt in sp_types if spt.startswith(b'G')])))
+    print('N_sptype=K = {0}'.format(len([spt for spt in sp_types if spt.startswith(b'K')])))
+    print('N_sptype=M = {0}'.format(len([spt for spt in sp_types if spt.startswith(b'M')])))
     # for star in stars:
     #     names.append(star.name.upper())
     #     customSimbad = Simbad()

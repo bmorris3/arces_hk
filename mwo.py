@@ -12,7 +12,8 @@ from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
                      StarProps, Measurement, stars_to_json, FitParameter)
 
 root_dir = '/Users/bmmorris/data/'
-dates = ['UT160918', 'UT161202', 'Q1UW09/UT170317']
+dates = ['UT160918', 'UT161202', 'Q1UW09/UT170317', 'Q3UW04/UT170615',
+         'Q3UW04/UT170620']
 standards = ['hr6943', 'HR3454', 'G191B2b']
 
 # # Night: UT160918
@@ -39,21 +40,18 @@ target_names += ['HD120476', 'HD151288', 'HD149957', 'HD148467', 'GJ702B',
                  'HD175742', 'HD200560']
 all_spectra = []
 stars = []
+standard_path = ('/Users/bmmorris/data/Q3UW04/UT160706/'
+                 'BD28_4211.0034.wfrmcpc.fits')
+standard_spectrum = EchelleSpectrum.from_fits(standard_path)
 
 fig, ax = plt.subplots(2, 2, figsize=(12, 10))
 
-for date_name, standard_name in zip(dates, standards):
+for date_name in dates:
     data_dir = os.path.join(root_dir, date_name)
-
     spectra_paths = glob_spectra_paths(data_dir, target_names)
-
-    standard_spectra_paths = glob(os.path.join(data_dir,
-                                               "{0}*.wfrmcpc.fits"
-                                               .format(standard_name)))
 
     for spectrum_path in spectra_paths:
         target_spectrum = EchelleSpectrum.from_fits(spectrum_path)
-        standard_spectrum = EchelleSpectrum.from_fits(standard_spectra_paths[0])
 
         only_orders = list(range(81, 91+1))
         target_spectrum.continuum_normalize(standard_spectrum,
@@ -80,7 +78,7 @@ for date_name, standard_name in zip(dates, standards):
 
         all_spectra.append(target_spectrum)
 
-        s_apo = uncalibrated_s_index(target_spectrum)
+        s_apo = uncalibrated_s_index(target_spectrum, plots=True)
 
         star = StarProps(name=target_spectrum.name, s_apo=s_apo,
                          time=target_spectrum.time)
