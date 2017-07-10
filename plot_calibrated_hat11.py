@@ -66,7 +66,7 @@ fig, ax = plt.subplots()
 ax.axvspan(2009.4, 2013.4, color='k', alpha=0.1, label='Kepler')
 
 ax.errorbar(hat11_s_apo.time.decimalyear, hat11_s_mwo.value, hat11_s_mwo.err/2,
-            fmt='.', color='r', capsize=0,
+            fmt='s', markersize=3, color='r', capsize=0,
             ecolor='gray', label='ARC 3.5m/ARCES')
 
 ax.errorbar(hires['time'].decimalyear, hires['S-value'], yerr=rough_hires_err,

@@ -65,7 +65,7 @@ f.to_text('calibrated_f.txt')
 
 ##############################################################################
 # Plot fit results
-fig, ax = plt.subplots(figsize=(8, 8))
+fig, ax = plt.subplots(figsize=(6, 6))
 ax.plot(cals_s_apo.value[sort], model_best[sort],
         color='r', label='MCMC model')
 
@@ -81,7 +81,7 @@ ax.set_ylabel("$S_{MWO}$", fontsize=fontsize)
 note = ("$C_1 = {0:.2f}^{{+ {1:.2f} }}_{{- {2:.2f} }}$\n".format(*m_mcmc) +
         "$C_2 = {0:.2f}^{{+ {1:.2f} }}_{{- {2:.2f} }}$".format(*b_mcmc))
 
-ax.text(0.03, 1.5, note, ha='right', fontsize=fontsize)
+#ax.text(0.03, 1.5, note, ha='right', fontsize=fontsize)
 ax.set_aspect('auto', 'datalim')
 ax.set_xlim([0, 0.075])
 ax.set_ylim([0, 2])
