@@ -55,6 +55,15 @@ args = (x, y, yerr)
 sampler = fit_gp(initp, args, nsteps=5000)
 samples = sampler.flatchain
 
+fig = plt.figure()
+plt.hist(samples[:, 2], 100, histtype='stepfilled', color='k', normed=True)
+ax = plt.gca()
+ax.get_xaxis().get_major_formatter().set_useOffset(False)
+ax.set_xlabel('Period')
+ax.set_title('Sun')
+fig.savefig('plots/period_sun.png', bbox_inches='tight', dpi=200)
+plt.show()
+
 fig, ax = plot_corner(samples)
 fig.savefig('plots/corner_sun.png', bbox_inches='tight', dpi=200)
 fig, ax = plot_draws(samples, x, y, yerr)

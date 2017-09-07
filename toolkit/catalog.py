@@ -29,9 +29,11 @@ def get_duncan_catalog():
     global sindex_catalog
 
     if sindex_catalog is None:
-        catalogs = Vizier.get_catalogs(duncan1991)
-        sindex_catalog = catalogs[0]  # This is the table with the data
-
+        duncan1991 = 'III/159A'
+        sindex_catalog = Vizier(catalog=duncan1991,
+                                columns=["*", "Bmag", "Vmag"],
+                                row_limit=1e10
+                                ).query_constraints()[0]
     return sindex_catalog
 
 

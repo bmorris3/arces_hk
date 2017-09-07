@@ -32,5 +32,4 @@ stars_to_json(calstars_apo_calibrated, 'mwo_apo_calibrated.json')
 
 #############################################################################
 
-#stars = json_to_stars('mwo_stars.json')
 construct_standard_star_table(calstars_apo_calibrated)

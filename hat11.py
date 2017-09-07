@@ -11,11 +11,10 @@ from toolkit import (EchelleSpectrum, glob_spectra_paths, uncalibrated_s_index,
 # Note that not all observations in this dir are actually from Q3
 root_dir = '/Users/bmmorris/data/Q3UW04'
 dates = ['UT160703', 'UT160706', 'UT160707', 'UT160709', 'UT160918',
-         'UT170411', 'UT170612', 'UT170620']
+         'UT170411', 'UT170612', 'UT170620', 'UT170905']
 standard_path = ('/Users/bmmorris/data/Q3UW04/UT160706/'
                  'BD28_4211.0034.wfrmcpc.fits')
-# dates = ['UT170411']
-# standards = ['HR5501']
+
 
 from astropy.time import Time
 date_min = Time('2016-07-03')
@@ -23,7 +22,6 @@ date_max = Time('2017-04-11')
 colormap = lambda x: plt.cm.winter(float(x - date_min.jd) /
                                    (date_max.jd-date_min.jd))
 
-# hd222107 seems to have an anamolously low S_apo
 target_names = ['hat', 'HAT']
 
 all_spectra = []
@@ -96,6 +94,7 @@ for axis in ax[0, :]:
     axis.legend(fontsize=8)
 
 fig.savefig('plots/spectra_hat11.png', bbox_inches='tight', dpi=200)
+fig.savefig('plots/spectra_hat11.pdf', bbox_inches='tight', dpi=200)
 
 plt.show()
 
@@ -107,14 +106,15 @@ for s in all_spectra:
 times = np.array(times)
 
 for i, s in enumerate(all_spectra):
-    order = s.get_order(89).plot(color='r' if times[i] < 2017 else 'k',
+    order = s.get_order(89).plot(color='gray' if times[i] < 2017 else 'k',
                                  alpha=1, ax=ax, lw=1)
 
 annotate_kwargs = dict(ha='left', fontsize=20)
-ax.annotate("2016", xy=(3967.5, 0.85), color='r', **annotate_kwargs)
+ax.annotate("2016", xy=(3967.5, 0.85), color='gray', **annotate_kwargs)
 ax.annotate("2017", xy=(3967.5, 0.75), color='k', **annotate_kwargs)
 ax.set_xlim([3967, 3970])
 ax.set_ylim([0, 1.1])
 ax.set(xlabel='Wavelength [Angstrom]', ylabel='Flux')
 fig.savefig('plots/close_up_h.png', bbox_inches='tight', dpi=200)
+fig.savefig('plots/close_up_h.pdf', bbox_inches='tight', dpi=200)
 plt.show()

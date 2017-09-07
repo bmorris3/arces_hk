@@ -55,10 +55,6 @@ def integrate_spectrum_trapz(spectrum, center_wavelength, width,
         wavelength = wavelength[::-1]
         flux = flux[::-1]
 
-    # plt.figure()
-    # plt.plot(wavelength, flux.value)
-    # plt.show()
-
     # Assert fluxes are not negative
     flux.value[flux.value < 0] = 0.0
 
@@ -385,8 +381,6 @@ class Measurement(object):
 def error_to_latex(error):
     str_err = "{0:.2g}".format(error)
     if 'e' in str_err:
-        # split_str = str_err.split('e')
-        # str_err = split_str[0] + r'\times 10^{{{0}}}'.format(int(split_str[1]))
         str_err = "{0:.6f}".format(error)
     return str_err
 

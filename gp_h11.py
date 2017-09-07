@@ -28,6 +28,15 @@ args = (x, y, yerr)
 sampler = fit_gp(initp, args, nsteps=5000)
 samples = sampler.flatchain
 
+fig = plt.figure()
+plt.hist(samples[:, 2], 100, histtype='stepfilled', color='k', normed=True)
+ax = plt.gca()
+ax.get_xaxis().get_major_formatter().set_useOffset(False)
+ax.set_xlabel('Period')
+ax.set_title('HAT-P-11')
+fig.savefig('plots/period_h11.png', bbox_inches='tight', dpi=200)
+plt.show()
+
 fig, ax = plot_corner(samples)
 fig.savefig('plots/corner_hat11.png', bbox_inches='tight', dpi=200)
 

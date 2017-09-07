@@ -1,8 +1,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import george
-from george.kernels import Matern32Kernel
 import numpy as np
 import matplotlib.pyplot as plt
 import emcee
@@ -136,27 +134,6 @@ def plot_corner(samples):
            labels=['high', 'low', 'period', 'duration_low',
                    'duration_slope', 'phase', 'var'])
     return fig, ax
-
-
-# def plot_draws(samples, x, y, yerr, n_draws=150):
-#     t = np.concatenate((x, np.linspace(x.min()-x.ptp()/2,
-#                                        x.max()+x.ptp()/2, 300)))
-#     t = np.sort(t)
-#
-#     fig, ax = plt.subplots()
-#     for s in samples[np.random.randint(len(samples), size=n_draws)]:
-#         high, low, period, duration_low, duration_slope, phase, var, lntau = s
-#
-#         kernel = Matern32Kernel(np.exp(lntau))
-#         gp = george.GP(kernel)
-#         gp.compute(x, np.sqrt(yerr**2 + var))
-#         m = gp.sample_conditional(y - model(s, x), t) + model(s, t)
-#         ax.plot(t, m, '-', color="#4682b4", alpha=0.05)
-#     ax.errorbar(x, y, yerr=yerr, fmt=".k", capsize=0,
-#                 zorder=10)
-#     ax.set_ylabel(r"$S$-index")
-#     ax.set_title("Gaussian process model")
-#     return fig, ax
 
 def plot_draws(samples, x, y, yerr, n_draws=150):
 

@@ -13,7 +13,6 @@ from astropy.table import Table
 from astropy.io import ascii
 from astropy.time import Time
 
-from .catalog import query_catalog_for_object
 from .activity import Measurement, SIndex, StarProps
 
 __all__ = ['glob_spectra_paths', 'stars_to_json', 'json_to_stars',
@@ -59,40 +58,6 @@ def glob_spectra_paths(data_dir, target_names):
 
     return all_spectra_paths
 
-
-# def construct_standard_star_table(stars, write_to=results_dir):
-#
-#     names = []
-#     sp_types = []
-#     s_mwo = []
-#     s_apo = []
-#
-#     for star in stars:
-#         names.append(star.name.upper())
-#         customSimbad = Simbad()
-#         customSimbad.add_votable_fields('sptype')
-#         sp_type = customSimbad.query_object(star.name)['SP_TYPE'][0]
-#         sp_types.append(sp_type)
-#
-#         s_mwo.append(star.s_mwo.to_latex())
-#         s_apo.append(star.s_apo.to_latex())
-#
-#     standard_table = Table([names, sp_types, s_mwo, s_apo],
-#                            names=['Star', 'Sp.~Type', '$S_{MWO}$', '$S_{APO}$'])
-#
-#     standard_table.sort(keys='$S_{MWO}$')
-#
-#     latexdict = dict(col_align='l l c c', preamble=r'\begin{center}',
-#                      tablefoot=r'\end{center}',
-#                      caption=r'Stars observed to calibrate the $S$-index '
-#                              r'(see Section~\ref{sec:def_s_index}). \label{tab:cals}',
-#                      data_start=r'\hline')
-#
-#     # output_path,
-#     ascii.write(standard_table, format='latex', latexdict=latexdict,
-#                 output='cal_stars.tex')
-#
-
 def combine_measurements(measurement_list):
     mean = np.mean([m.value for m in measurement_list])
     err = np.sqrt(np.sum(np.array([m.err for m in measurement_list])**2))
@@ -135,15 +100,6 @@ def construct_standard_star_table(stars, write_to=results_dir):
     print('N_sptype=G = {0}'.format(len([spt for spt in sp_types if spt.startswith(b'G')])))
     print('N_sptype=K = {0}'.format(len([spt for spt in sp_types if spt.startswith(b'K')])))
     print('N_sptype=M = {0}'.format(len([spt for spt in sp_types if spt.startswith(b'M')])))
-    # for star in stars:
-    #     names.append(star.name.upper())
-    #     customSimbad = Simbad()
-    #     customSimbad.add_votable_fields('sptype')
-    #     sp_type = customSimbad.query_object(star.name)['SP_TYPE'][0]
-    #     sp_types.append(sp_type)
-    #
-    #     s_mwo.append(star.s_mwo.to_latex())
-    #     s_apo.append(star.s_apo.to_latex())
 
     standard_table = Table([names, sp_types, s_mwo, s_apo, n_obs],
                            names=['Star', 'Sp.~Type', '$S_{MWO}$', '$S_{APO}$', '$N$'])

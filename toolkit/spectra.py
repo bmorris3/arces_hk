@@ -222,34 +222,9 @@ class EchelleSpectrum(object):
             # Normalize the target's flux with the continuum fit from the standard
             target_continuum_fit = self.predict_continuum(spectral_order,
                                                           fit_params)
-            #
-            # if spectral_order in [88, 89, 90, 91]:
-            #     plt.figure()
-            #     plt.plot(target_continuum_fit)
-            #     plt.plot(target_order.flux)
-            #     plt.show()
+
 
             target_continuum_normalized_flux = target_order.flux / target_continuum_fit
-            # if spectral_order in [88, 89, 90, 91]:
-            #     fig, ax = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
-            #     # plt.plot(target_order.flux / target_continuum_fit)
-            #     ax[0].plot(target_order.wavelength, target_continuum_normalized_flux)
-            #     ax[0].plot(target_order.wavelength[target_mask],
-            #              target_continuum_normalized_flux[target_mask])
-            #
-            #     yrange = [0, 3]
-            #     ax[0].set_ylim(yrange)
-            #
-            #     ax[1].hist(target_continuum_normalized_flux, 70, range=yrange,
-            #                orientation='horizontal', histtype='stepfilled',
-            #                color='k')
-            #
-            #     for axis in ax:
-            #         props = dict(ls='--', lw=2, color='r')
-            #         axis.axhline(np.percentile(target_continuum_normalized_flux, 80), **props)
-            #         # axis.axhline(np.percentile(target_continuum_normalized_flux, 90), **props)
-            #
-            #     plt.show()
 
             normalized_target_spectrum = Spectrum1D(target_continuum_normalized_flux,
                                                     target_order.wcs, mask=target_mask)
@@ -372,14 +347,7 @@ def interpolate_spectrum(spectrum, new_wavelengths):
     interp_spec : `Spectrum1D`
         Interpolated spectrum.
     """
-    # start_ind = np.argmin(np.abs(start_wavelength - spectrum.wavelength))
-    # end_ind = np.argmin(np.abs(end_wavelength - spectrum.wavelength))
-    # print(start_ind, end_ind)
-    #
-    # if end_ind < start_ind:
-    #     start_ind, end_ind = end_ind, start_ind
-    #
-    # return spectrum.slice_index(start_ind, end_ind)
+
     sort_order = np.argsort(spectrum.masked_wavelength.to(u.Angstrom).value)
     sorted_spectrum_wavelengths = spectrum.masked_wavelength.to(u.Angstrom).value[sort_order]
     sorted_spectrum_fluxes = spectrum.masked_flux.value[sort_order]
@@ -421,9 +389,6 @@ def cross_corr(target_spectrum, model_spectrum, kernel_width):
 
     max_corr_ind = np.argmax(corr)
     index_shift = corr.shape[0]/2 - max_corr_ind
-
-    # delta_wavelength = np.abs(target_spectrum.masked_wavelength[1] -
-    #                           target_spectrum.masked_wavelength[0])
 
     delta_wavelength = np.median(np.abs(np.diff(target_spectrum.masked_wavelength)))
 
