@@ -1,6 +1,8 @@
 # arces_hk
 Measuring chromospheric activity with APO ARC 3.5 m + ARCES. 
 
+[![DOI](https://zenodo.org/badge/69041786.svg)](https://zenodo.org/badge/latestdoi/69041786)
+
 Workflow
 ========
 
