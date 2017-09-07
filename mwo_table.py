@@ -2,11 +2,11 @@ from toolkit import json_to_stars, FitParameter, Measurement, StarProps, stars_t
 from toolkit.utils import construct_standard_star_table
 import numpy as np
 
-f = FitParameter.from_text('calibrated_f.txt')
-c1 = FitParameter.from_text('calibrated_c1.txt')
-c2 = FitParameter.from_text('calibrated_c2.txt')
+f = FitParameter.from_text('calibration_constants/calibrated_f.txt')
+c1 = FitParameter.from_text('calibration_constants/calibrated_c1.txt')
+c2 = FitParameter.from_text('calibration_constants/calibrated_c2.txt')
 
-calstars = json_to_stars('mwo_stars.json')
+calstars = json_to_stars('data/mwo_stars.json')
 names = [s.name for s in calstars]
 
 calstars_s_apo = Measurement([s.s_apo.uncalibrated.value for s in calstars],
@@ -28,7 +28,7 @@ calstars_apo_calibrated = [StarProps(name=names, s_apo=sapo, s_mwo=smwo,
                            for sapo, smwo, names in
                            zip(calstars_s_apo, calstars_s_mwo, names)]
 
-stars_to_json(calstars_apo_calibrated, 'mwo_apo_calibrated.json')
+stars_to_json(calstars_apo_calibrated, 'data/mwo_apo_calibrated.json')
 
 #############################################################################
 

@@ -8,11 +8,11 @@ from toolkit import (json_to_stars, Measurement, stars_to_json, FitParameter,
 
 props = dict(fontsize=15)
 
-hat11 = json_to_stars('hat11.json')
+hat11 = json_to_stars('data/hat11.json')
 
-f = FitParameter.from_text('calibrated_f.txt')
-c1 = FitParameter.from_text('calibrated_c1.txt')
-c2 = FitParameter.from_text('calibrated_c2.txt')
+f = FitParameter.from_text('calibration_constants/calibrated_f.txt')
+c1 = FitParameter.from_text('calibration_constants/calibrated_c1.txt')
+c2 = FitParameter.from_text('calibration_constants/calibrated_c2.txt')
 
 hat11_s_apo = Measurement([s.s_apo.uncalibrated.value for s in hat11],
                           err=[s.s_apo.uncalibrated.err for s in hat11],
@@ -32,7 +32,7 @@ hat11_apo_calibrated = [StarProps(name='HAT-P-11', s_apo=sapo, s_mwo=smwo,
                                   time=sapo.time)
                         for sapo, smwo in zip(hat11_s_apo, hat11_s_mwo)]
 
-stars_to_json(hat11_apo_calibrated, 'hat11_apo_calibrated.json')
+stars_to_json(hat11_apo_calibrated, 'data/hat11_apo_calibrated.json')
 
 #############################################################################
 # Write out results to table
@@ -69,7 +69,7 @@ hat11_s_keck = Measurement(value=hires['S-value'].data,
 
 hat11_keck_calibrated = [StarProps(name='HAT-P-11', s_mwo=s, time=s.time)
                          for s in hat11_s_keck]
-stars_to_json(hat11_keck_calibrated, 'hat11_keck_calibrated.json')
+stars_to_json(hat11_keck_calibrated, 'data/hat11_keck_calibrated.json')
 
 fig, ax = plt.subplots()
 ax.axvspan(2009.4, 2013.4, color='k', alpha=0.1, label='Kepler')

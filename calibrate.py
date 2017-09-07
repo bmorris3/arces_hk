@@ -5,7 +5,7 @@ from corner import corner
 from toolkit import json_to_stars, Measurement, mcmc_fit, FitParameter
 
 
-calstars = json_to_stars('mwo_stars.json')
+calstars = json_to_stars('data/mwo_stars.json')
 
 cals_s_mwo = Measurement([s.s_mwo.value for s in calstars],
                          err=[s.s_mwo.err for s in calstars],
@@ -59,9 +59,9 @@ f = FitParameter(f_mcmc[0], err_upper=f_mcmc[1], err_lower=f_mcmc[2])
 
 model_best = c1.value * cals_s_apo.value + c2.value
 
-c1.to_text('calibrated_c1.txt')
-c2.to_text('calibrated_c2.txt')
-f.to_text('calibrated_f.txt')
+c1.to_text('calibration_constants/calibrated_c1.txt')
+c2.to_text('calibration_constants/calibrated_c2.txt')
+f.to_text('calibration_constants/calibrated_f.txt')
 
 ##############################################################################
 # Plot fit results

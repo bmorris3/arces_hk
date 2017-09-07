@@ -23,13 +23,11 @@ target_names = ['hd201251', 'hd217906', 'hd218356', #'hd222107',
 
 # Night: UT161201
 target_names += ['HD41593', 'HD45088', 'HD68017', 'HD34411', 'HD39587']
-#'HD86728'
 
-# target_names = ['HD34411', 'HD86728']
 
 # Night: UT170317
 target_names += ['HD110833', 'HD266611', 'HD47752', 'HD47752', 'HD79555',
-                 'HD82106', 'HD87884']# , 'HD98230']
+                 'HD82106', 'HD87884']
 
 # Night: UT170615
 target_names += ['HD113827', 'HD122120', 'HD127506', 'HD129333', 'HD134319',
@@ -85,7 +83,7 @@ for date_name in dates:
         star.get_s_mwo()
         stars.append(star)
 
-stars_to_json(stars, output_path='mwo_stars.json')
+stars_to_json(stars, output_path='data/mwo_stars.json')
 
 ax[0, 0].set_ylabel('Flux')
 ax[1, 0].set_ylabel('Flux')
@@ -123,8 +121,6 @@ best_model = theta_best[0] * s_apo.value + theta_best[1]
 plt.figure()
 plt.text(0.015, 0.7, "c1 = {0:.2f}, \nc2 = {1:.2f}".format(*theta_best))
 
-# for s in stars:
-    # plt.text(s.s_apo.uncalibrated, s.s_mwo.value, s.name)
 
 plt.errorbar(s_apo.value, s_mwo.value,
              xerr=s_apo.err,

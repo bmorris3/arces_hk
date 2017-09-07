@@ -73,7 +73,7 @@ for date_name in dates:
                          time=target_spectrum.time)
         stars.append(star)
 
-stars_to_json(stars, output_path='hat11.json')
+stars_to_json(stars, output_path='data/hat11.json')
 
 ax[0, 0].set_ylabel('Flux')
 ax[1, 0].set_ylabel('Flux')

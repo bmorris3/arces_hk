@@ -1,5 +1,5 @@
 # Outputs
-*.json
+#*.json
 
 # Pycharm
 .idea
